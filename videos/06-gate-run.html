@@ -95,11 +95,11 @@
   .legend .sw{ width:13px; height:13px; border-radius:3px; }
 
   /* outcome flip flash — lower third, clear of the gate cluster */
-  .flash{ position:absolute; left:50%; top:78%; transform:translate(-50%,-50%); z-index:70;
+  .flash{ position:absolute; left:50%; top:80%; transform:translate(-50%,-50%); z-index:70;
     font-family:var(--font); font-weight:700; letter-spacing:.06em; text-align:center;
     opacity:0; pointer-events:none; text-shadow:0 4px 30px rgba(0,0,0,.7); }
-  .flash .lab{ font-size:66px; line-height:1; }
-  .flash .sub{ font-family:var(--mono); font-size:21px; letter-spacing:.28em; color:var(--text);
+  .flash .lab{ font-size:60px; line-height:1; }
+  .flash .sub{ font-family:var(--mono); font-size:20px; letter-spacing:.28em; color:var(--text);
     margin-top:14px; text-transform:uppercase; }
 </style>
 </head>
@@ -113,6 +113,17 @@
            so goals bend the track on the same frame. Camera flies
            forward as the match clock sweeps. Three outcome gates
            (WIN/DRAW/LOSE) float ahead with target $ + live implied %.
+
+           DETERMINISM CONTRACT (critical for the capture harness):
+           Every animated quantity below is a PURE FUNCTION of the loop-
+           local time `tl` (0..LOOP_MS), recomputed from scratch every
+           frame. There is NO frame-to-frame accumulation (`+=`), NO
+           module-level counter advanced per frame, NO reliance on
+           Date.now / wall-clock / rAF-timestamp deltas. Randomness is a
+           deterministic hash of an index (computed once at load). So the
+           scene yields the IDENTICAL image for a given `tl` regardless of
+           how many frames were pumped before it (the harness warms up a
+           full loop before capturing).
            ============================================================ -->
       <canvas id="c3d" width="1920" height="1080"></canvas>
 
@@ -266,19 +277,17 @@ const TAIL = (()=>{
     h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
   };
   const safe = (v,d=0)=> Number.isFinite(v)? v : d;
-  const rgba = (h,a)=>{ const [r,g,b]=hexToRgb(h); return `rgba(${safe(r)},${safe(g)},${safe(b)},${safe(a)})`; };
+  const rgba = (h,a)=>{ const [r,g,b]=hexToRgb(h); return `rgba(${safe(r)},${safe(g)},${safe(b)},${TAIL.clamp(safe(a),0,1)})`; };
   // returns an rgba() string directly so it composes anywhere
   const mix = (h1,h2,t,a=1)=>{ t=TAIL.clamp(safe(t,0),0,1); const c1=hexToRgb(h1),c2=hexToRgb(h2);
-    return `rgba(${Math.round(TAIL.lerp(c1[0],c2[0],t))},${Math.round(TAIL.lerp(c1[1],c2[1],t))},${Math.round(TAIL.lerp(c1[2],c2[2],t))},${safe(a,1)})`; };
+    return `rgba(${Math.round(TAIL.lerp(c1[0],c2[0],t))},${Math.round(TAIL.lerp(c1[1],c2[1],t))},${Math.round(TAIL.lerp(c1[2],c2[2],t))},${TAIL.clamp(safe(a,1),0,1)})`; };
 
   // ── timeline: map loop progress → match minute ───────────────
   // Sweep from kickoff window through full-time, return to start at LOOP end.
   const MIN_START = -6;     // a beat before kickoff
   const MIN_END   = 124;    // a beat past the settle marker (ftMin 118)
   // Real broadcast clock for display (data .min is an internal axis; goal labels carry the true minute).
-  // We derive a shown clock from min using KO=0 -> minute 0, capped at 90+stoppage feel.
   const shownClock = (min)=>{
-    // data axis: 0..~115 maps to 0'..90+ ; keep it readable & monotonic.
     if (min <= 0) return 0;
     if (min <= 90) return Math.round(min);
     // stoppage compression: 90..115 -> 90'..90+7'
@@ -293,7 +302,10 @@ const TAIL = (()=>{
   }
 
   // ── price → world height. Anchor gates & track to one vertical scale.
-  const pY = (price)=> TAIL.map(price, M.priceMin, M.priceMax, -1, 1); // world-y in [-1,1]ish band
+  // World-y is the price expressed in [-1,1]-ish band units; the camera height
+  // tracks the live price, so the centerline always sits near screen mid-runway
+  // and the price *deviations* (goals) bank the ribbon up/down within frame.
+  const pY = (price)=> TAIL.map(price, M.priceMin, M.priceMax, -1, 1);
 
   // gate world heights
   const GATES = [
@@ -302,47 +314,50 @@ const TAIL = (()=>{
     { key:'win',  label:'WIN',  price:M.gates.win.price,  col:COL.lime,     y:pY(M.gates.win.price)  },
   ];
 
-  // ── pseudo-3D projection (pinhole camera) ────────────────────
-  // World axes: x = lateral, y = height (price band, +up), depth measured in
-  // "minutes ahead of the camera". Camera sits at the live minute looking +depth.
-  //   z      = minutesAhead * Z_PER + Z_NEAR      (world depth; near = small z = big)
-  //   scale  = FOCAL / z                          (perspective scale)
-  //   screenX = CX + worldX * scale
-  //   screenY = HORIZON - (worldY - camHeight) * scale * Y_GAIN
-  // Everything recedes to the vanishing point (CX, HORIZON) at the center.
-  const FOCAL   = 4.2;        // focal length in world units
-  const Z_PER   = 0.34;       // world-depth per match-minute (smaller => longer runway)
-  const Z_NEAR  = 1.30;       // depth of the nearest point (camera standoff)
-  const CX      = W*0.5;      // vanishing-point x (screen)
-  const HORIZON = H*0.42;     // vanishing-point y (screen)
-  const Y_GAIN  = 1.0;        // world-height -> screen gain (pre-perspective)
-  // Camera rides ABOVE the ribbon and looks slightly down, so the near track
-  // sits low on screen and climbs toward the vanishing point (a real runway).
-  const CAM_H_K = -0.62;
+  // ── pseudo-3D projection (runway camera) ─────────────────────
+  // World axes: x = lateral, y = height (price band, +up), depth = "minutes
+  // ahead of the camera". The camera rides at the live price and looks down a
+  // runway: the centerline at the camera's own height is pinned to NEAR_Y near
+  // the bottom and recedes to HORIZON at the vanishing point. Price deviations
+  // bank the ribbon vertically by a perspective-scaled, in-frame amount.
+  //   z      = minutesAhead * Z_PER + Z_NEAR
+  //   s      = FOCAL / z                       (perspective scale; S_NEAR near → 0 far)
+  //   baseY  = HORIZON + (NEAR_Y-HORIZON) * (s/S_NEAR)     (runway floor at cam height)
+  //   screenY= baseY - (worldY - camY) * s * YSPAN         (price banking, +price = up)
+  //   screenX= CX + worldX * s * XSPAN
+  const FOCAL   = 4.2;
+  const Z_PER   = 0.34;        // world-depth per match-minute
+  const Z_NEAR  = 1.30;        // depth of the nearest point (camera standoff)
+  const S_NEAR  = FOCAL / Z_NEAR;             // perspective scale at d=0 (≈3.23)
+  const CX      = W*0.5;       // vanishing-point x (screen)
+  const HORIZON = H*0.40;      // vanishing-point y (screen)
+  const NEAR_Y  = H*0.84;      // where the near track sits on screen (lower third)
+  const XSPAN   = W*0.50;      // world-x → screen lateral gain (pre-perspective)
+  const YSPAN   = H*0.165;     // world-height → screen vertical gain (pre-perspective)
 
-  // lateral heading of the track (the "veer"). Kept VERY small — the price
-  // *height* carries the story; a touch of lateral lean toward the live
-  // most-likely lane (win=right, loss=left) just adds 3D life without
-  // pulling the track off the gates it must fly through.
+  // current camera state — set ONCE at the top of every frame, purely from tl.
+  let camMin = MIN_START, camY = 0;
+
+  const PX_REF = 660;          // converts perspective scale → pixel magnitude for sizing
+  function project(worldX, worldY, minutesAhead){
+    const z = Math.max(Z_NEAR, minutesAhead * Z_PER + Z_NEAR);
+    const s = FOCAL / z;                                  // perspective scale
+    const baseY = HORIZON + (NEAR_Y - HORIZON) * (s / S_NEAR);
+    const sx = CX + worldX * s * XSPAN;
+    const sy = baseY - (worldY - camY) * s * YSPAN;
+    const px = s * PX_REF;
+    return { x:sx, y:sy, s, px, z };
+  }
+
+  // lateral heading of the track (the "veer"). Kept small — the price *height*
+  // carries the story; a touch of lateral lean toward the live most-likely lane
+  // (win=right, loss=left) adds 3D life without pulling the track off its gates.
   function headingAt(min){
     const o = oddsAt(min);
     const wsum = o.win+o.draw+o.loss || 1;
     const lane = ( o.win*1 + o.draw*0 + o.loss*(-1) ) / wsum;
-    return lane * 0.10;       // world-x amplitude (subtle)
+    return lane * 0.42;       // world-x amplitude (subtle lateral sway)
   }
-
-  const PX_REF = 660;        // converts perspective scale -> a pixel magnitude for sizing
-  function project(worldX, worldY, minutesAhead){
-    const z = Math.max(Z_NEAR, minutesAhead * Z_PER + Z_NEAR);
-    const s = FOCAL / z;                              // perspective scale (≈3.2 near, →0 far)
-    const sx = CX + worldX * s * (W*0.5);             // lateral, scaled to screen
-    const sy = HORIZON - (worldY - camY + CAM_H_K) * s * (H*0.5) * Y_GAIN;
-    const px = s * PX_REF;                            // pixel-magnitude for radii/fonts/widths
-    return { x:sx, y:sy, s, px, z };
-  }
-
-  // current camera state (set each frame)
-  let camMin = MIN_START, camY = 0;
 
   // ── event labels that streak past ────────────────────────────
   const EVENTS = [
@@ -354,15 +369,15 @@ const TAIL = (()=>{
     { min:112, text:"90+7' DOKU · 3–3",   col:COL.crimsonL },
   ];
 
-  // ── starfield motes for depth (deterministic) ────────────────
+  // ── starfield motes for depth — DETERMINISTIC static field ───
+  // Built once at load with a fixed-seed PRNG → identical every capture run.
+  // Per-frame motion is a pure function of camMin (see render), never integrated.
   const MOTES = [];
   for(let i=0;i<150;i++){
-    MOTES.push({ x:(TAIL.rng()*2-1)*2.2, y:(TAIL.rng()*2-1)*1.4, m: TAIL.rng()*120, sp:0.4+TAIL.rng()*0.8, r:0.4+TAIL.rng()*1.4 });
+    MOTES.push({ x:(TAIL.rng()*2-1)*2.4, y:(TAIL.rng()*2-1)*1.4, m: TAIL.rng()*120, sp:0.4+TAIL.rng()*0.8, r:0.4+TAIL.rng()*1.4 });
   }
 
   // ── flash control (outcome callouts) — driven by camMin window ──
-  // Shows while the camera's minute is within [atMin, atMin+win]; robust to
-  // the eased sweep. Returns true while active so we don't clobber it.
   function fireFlash(camMinNow, rewind, atMin, win, lab, sub, col){
     if(rewind>0) return false;                       // no callouts during fly-back
     const d = camMinNow - atMin;
@@ -389,12 +404,12 @@ const TAIL = (()=>{
     return sh;
   }
 
-  // ── main render ──────────────────────────────────────────────
+  // ── main render — EVERYTHING below is a pure function of tl ──
   TAIL.loop((tl)=>{
     const prog = tl / TAIL.LOOP_MS;                 // 0..1
     // Forward fly-through for most of the loop, then a fast cinematic fly-back
-    // to kickoff. Because both endpoints resolve to camMin === MIN_START, the
-    // loop is perfectly seamless (state at t=0 == state at t=LOOP_MS).
+    // to kickoff. Both endpoints resolve to camMin === MIN_START, so the loop
+    // is perfectly seamless (state at tl=0 === state at tl=LOOP_MS).
     const FWD_END = 0.86;                            // 86% forward, 14% rewind
     let rewind = 0;                                  // 0..1 during fly-back
     if(prog <= FWD_END){
@@ -402,15 +417,14 @@ const TAIL = (()=>{
       camMin = TAIL.lerp(MIN_START, MIN_END, k);
     } else {
       rewind = (prog - FWD_END) / (1 - FWD_END);     // 0→1
-      // fast rewind, eased so it settles gently onto kickoff
       const k = TAIL.E.inOut(rewind);
       camMin = TAIL.lerp(MIN_END, MIN_START, k);
     }
 
-    // live values
+    // live values (all pure functions of camMin, hence of tl)
     const price = priceAt(camMin);
     const o     = oddsAt(camMin);
-    camY = pY(price);
+    camY = pY(price);                                // camera height = live price
 
     // ── HUD numbers ──
     elPrice.textContent = price.toFixed(2);
@@ -421,7 +435,6 @@ const TAIL = (()=>{
     elClock.textContent = shownClock(camMin);
     const [sh,sa] = scoreAt(camMin);
     elScH.textContent = sh; elScA.textContent = sa;
-    // tint score lime if Everton ahead, crimson if behind
     elScH.style.color = sh>sa ? COL.lime : (sh<sa ? COL.crimsonL : '#fff');
 
     // ── canvas clear w/ atmospheric gradient ──
@@ -434,14 +447,14 @@ const TAIL = (()=>{
     // subtle horizon glow tinted by the live most-likely gate
     const leadKey = (o.win>=o.draw && o.win>=o.loss) ? 'win' : (o.draw>=o.loss ? 'draw' : 'loss');
     const leadCol = GATECOL[leadKey];
-    const hg = ctx.createRadialGradient(W/2, HORIZON, 40, W/2, HORIZON, 900);
-    hg.addColorStop(0, rgba(leadCol, .14));
+    const hg = ctx.createRadialGradient(W/2, HORIZON, 40, W/2, HORIZON, 980);
+    hg.addColorStop(0, rgba(leadCol, .16));
     hg.addColorStop(1, rgba(leadCol, 0));
     ctx.fillStyle = hg; ctx.fillRect(0,0,W,H);
 
     // camera shake (goal punch) — suppressed during the rewind fly-back.
-    // Jitter is a DETERMINISTIC function of tl (not rng) so the loop captures
-    // identically every run and wraps seamlessly.
+    // Jitter is a DETERMINISTIC function of tl (Math.sin/cos), so the loop
+    // captures identically every run and wraps seamlessly.
     const shk = (rewind>0 ? 0 : shakeAt(camMin)) * (9 + Math.sin(tl*0.06)*4);
     ctx.save();
     if(shk>0.01){
@@ -451,36 +464,36 @@ const TAIL = (()=>{
     }
 
     // ── floor grid (perspective ground plane) for depth read ──
+    // Lateral rules recede toward the horizon (drawn as full-width lines whose
+    // screen-y follows the runway floor below the centerline).
     ctx.lineWidth = 1;
-    for(let gz=0; gz<=120; gz+=4){
-      const minAhead = gz;
-      const baseY = pY(priceAt(camMin+minAhead)) - 0.86;   // ground sits below the track
-      const a = project(0, baseY, minAhead);
-      const fade = TAIL.clamp(1 - minAhead/110, 0, 1);
-      ctx.strokeStyle = rgba('#1b2733', 0.20*fade);
+    for(let gz=2; gz<=118; gz+=4){
+      const baseY = pY(priceAt(camMin+gz)) - 0.92;          // ground sits below the track
+      const a = project(0, baseY, gz);
+      const fade = TAIL.clamp(1 - gz/110, 0, 1);
+      ctx.strokeStyle = rgba('#1b2733', 0.22*fade);
       ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(W, a.y); ctx.stroke();
     }
     // longitudinal grid lines
     for(let lx=-4; lx<=4; lx++){
       ctx.beginPath();
       let started=false;
-      for(let gz=0; gz<=120; gz+=3){
-        const baseY = pY(priceAt(camMin+gz)) - 0.86;
+      for(let gz=0; gz<=118; gz+=3){
+        const baseY = pY(priceAt(camMin+gz)) - 0.92;
         const head  = headingAt(camMin+gz);
-        const p = project(lx*0.5 + head, baseY, gz);
+        const p = project(lx*0.6 + head, baseY, gz);
         if(!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
       }
-      ctx.strokeStyle = rgba('#16212c', 0.16); ctx.lineWidth=1; ctx.stroke();
+      ctx.strokeStyle = rgba('#16212c', 0.18); ctx.lineWidth=1; ctx.stroke();
     }
 
-    // ── depth motes ──
+    // ── depth motes ── (motion is a pure function of camMin; wraps in [0,120))
     for(const mt of MOTES){
-      const ma = ((mt.m + camMin*mt.sp) % 120 + 120) % 120;  // recede & wrap
-      const minAhead = ma;
-      if(minAhead < 0.5) continue;
+      const minAhead = ((mt.m - camMin*mt.sp) % 120 + 120) % 120;  // recede & wrap
+      if(minAhead < 0.5 || minAhead > 118) continue;
       const p = project(mt.x, mt.y, minAhead);
       const fade = TAIL.clamp(1-minAhead/115,0,1) * TAIL.clamp(minAhead/6,0,1);
-      ctx.fillStyle = rgba('#9fb3c8', 0.16*fade);
+      ctx.fillStyle = rgba('#9fb3c8', 0.18*fade);
       ctx.beginPath(); ctx.arc(p.x, p.y, mt.r*p.s*0.7+0.4, 0, 7); ctx.fill();
     }
 
@@ -491,11 +504,7 @@ const TAIL = (()=>{
     //  Lead (most-likely) gate is brightest. A gate FLARES when the
     //  live price height aligns with it (the price flying through).
     // ════════════════════════════════════════════════════════════
-    // All three gates sit ON the track path (centerline + its heading), staggered
-    // in depth so the camera literally flies toward/through them. Their HEIGHT is
-    // their outcome's price — so the track climbing to WIN-height or dropping to
-    // DRAW-height = lining up with / passing through that gate.
-    const GATE_AHEAD = { draw:42, win:54, loss:66 };   // depth (minutes); spread so each reads as a distinct portal
+    const GATE_AHEAD = { draw:40, win:52, loss:64 };   // depth (minutes); spread so each reads as a distinct portal
     const renderGates = GATES.map(g=>{
       const minAhead = GATE_AHEAD[g.key];
       const head = headingAt(camMin+minAhead);          // gate rides the track's lateral path
@@ -508,19 +517,19 @@ const TAIL = (()=>{
     for(const rg of renderGates){
       const { g, minAhead, cx, liveProb, align } = rg;
       const c = project(cx, g.y, minAhead);
-      const ringR = Math.max(8, c.px * 0.34);          // ring radius (perspective)
+      const ringR = Math.max(14, c.px * 0.40);          // ring radius (perspective)
       const ryK = 1.16;                                 // slight vertical ellipse
-      const fade = TAIL.clamp(1-minAhead/95, .25, 1);
+      const fade = TAIL.clamp(1-minAhead/95, .30, 1);
       const isLead = (g.key===leadKey);
       const pulse = 0.5 + 0.5*Math.sin(tl*0.006 + (g.key==='win'?0:g.key==='draw'?2:4));
       // flare boosts the realized gate as the price threads it
       const flare = (g.key==='draw'? align : align*0.5) * (camMin>100?1:0.3);
-      const energy = TAIL.clamp((isLead?0.95:0.42) + flare*0.8, 0, 1.4);
+      const energy = TAIL.clamp((isLead?0.95:0.45) + flare*0.8, 0, 1.4);
 
       // portal disc (soft volumetric fill)
       const grd = ctx.createRadialGradient(c.x,c.y, ringR*0.05, c.x,c.y, ringR*1.25);
-      grd.addColorStop(0, rgba(g.col, 0.05 + (isLead?0.12:0.03) + flare*0.30));
-      grd.addColorStop(0.6, rgba(g.col, 0.04 + flare*0.12));
+      grd.addColorStop(0, rgba(g.col, 0.06 + (isLead?0.14:0.04) + flare*0.30));
+      grd.addColorStop(0.6, rgba(g.col, 0.05 + flare*0.12));
       grd.addColorStop(1, rgba(g.col, 0));
       ctx.fillStyle = grd;
       ctx.beginPath(); ctx.ellipse(c.x, c.y, ringR*1.1, ringR*ryK*1.1, 0, 0, 7); ctx.fill();
@@ -528,20 +537,20 @@ const TAIL = (()=>{
       // outer glow ring
       ctx.save();
       ctx.shadowColor = rgba(g.col, Math.min(1,energy)*fade);
-      ctx.shadowBlur  = (28 + (isLead?22:0) + flare*60) * fade;
-      ctx.strokeStyle = rgba(g.col, Math.min(1,(isLead?0.95:0.55)+flare*0.6)*fade);
-      ctx.lineWidth   = Math.max(2.5, c.px*0.018*(isLead?1.5:1)*(1+flare));
+      ctx.shadowBlur  = (30 + (isLead?22:0) + flare*60) * fade;
+      ctx.strokeStyle = rgba(g.col, Math.min(1,(isLead?0.98:0.6)+flare*0.6)*fade);
+      ctx.lineWidth   = Math.max(3, c.px*0.020*(isLead?1.5:1)*(1+flare));
       ctx.beginPath(); ctx.ellipse(c.x, c.y, ringR, ringR*ryK, 0, 0, 7); ctx.stroke();
       // inner thin ring
       ctx.shadowBlur = flare*30;
-      ctx.strokeStyle = rgba('#ffffff', Math.min(1,(isLead?0.5:0.22)+flare*0.7)*fade);
-      ctx.lineWidth = Math.max(1, c.px*0.006);
+      ctx.strokeStyle = rgba('#ffffff', Math.min(1,(isLead?0.55:0.26)+flare*0.7)*fade);
+      ctx.lineWidth = Math.max(1.2, c.px*0.007);
       ctx.beginPath(); ctx.ellipse(c.x, c.y, ringR*0.78, ringR*0.78*ryK, 0, 0, 7); ctx.stroke();
       ctx.restore();
 
-      // energy tick marks around the portal rim
+      // energy tick marks around the portal rim (rotation is a pure fn of tl)
       const ticks = 30;
-      ctx.strokeStyle = rgba(g.col, (0.30+flare*0.5)*fade);
+      ctx.strokeStyle = rgba(g.col, (0.34+flare*0.5)*fade);
       ctx.lineWidth = Math.max(1, c.px*0.004);
       for(let i=0;i<ticks;i++){
         const ang = (i/ticks)*Math.PI*2 + tl*0.0009*(g.key==='win'?1:-1);
@@ -552,35 +561,31 @@ const TAIL = (()=>{
         ctx.stroke();
       }
 
-      // labels — placed to the SIDE of the ring with a leader line so they never
-      // stack on the rings (DRAW right; WIN/LOSE left). Each is biased away from
-      // screen-center vertically (WIN up, LOSE down) so labels stay separated even
-      // when the gates cluster near the vanishing point. Detail ($price) fades in
-      // only once the gate is close; the outcome word + live % show from farther.
-      const lblA = TAIL.clamp((c.px-26)/90, 0, 1) * fade;       // word + %
-      const detA = TAIL.clamp((c.px-70)/80, 0, 1) * fade;       // $price detail
+      // labels — placed to the SIDE of the ring with a leader line (DRAW right;
+      // WIN/LOSE left), biased away from screen-center vertically so labels stay
+      // separated even when gates cluster near the vanishing point. Detail ($price)
+      // fades in only once the gate is close; word + live % show from farther.
+      const lblA = TAIL.clamp((c.px-22)/90, 0, 1) * fade;       // word + %
+      const detA = TAIL.clamp((c.px-64)/80, 0, 1) * fade;       // $price detail
       if(lblA > 0.04){
         const side = (g.key==='draw') ? 1 : -1;                 // -1 = left, +1 = right
         const vbias = (g.key==='win'? -1 : g.key==='loss'? 1 : 0) * (ringR*0.5 + 10);
-        const off  = ringR + 16;
+        const off  = ringR + 18;
         const lx   = c.x + side*off;
         const ly   = c.y + vbias;
-        const fL  = Math.round(TAIL.clamp(c.px*0.16, 15, 34));
-        const fP  = Math.round(TAIL.clamp(c.px*0.135, 12, 26));
-        // leader line from ring rim outward to the label anchor
-        ctx.strokeStyle = rgba(g.col, 0.5*lblA);
+        const fL  = Math.round(TAIL.clamp(c.px*0.17, 16, 38));
+        const fP  = Math.round(TAIL.clamp(c.px*0.14, 13, 28));
+        ctx.strokeStyle = rgba(g.col, 0.55*lblA);
         ctx.lineWidth = Math.max(1, c.px*0.004);
         ctx.beginPath(); ctx.moveTo(c.x+side*ringR, c.y); ctx.lineTo(lx, ly); ctx.stroke();
         ctx.textAlign = side<0 ? 'right' : 'left';
         const tx = lx + side*8;
-        // outcome word + live % (always when visible)
         ctx.font = `700 ${fL}px 'Space Grotesk'`;
         ctx.fillStyle = rgba(g.col, Math.min(1,lblA+flare*0.4));
-        ctx.shadowColor = rgba(g.col, 0.55*lblA); ctx.shadowBlur = 12;
+        ctx.shadowColor = rgba(g.col, 0.6*lblA); ctx.shadowBlur = 12;
         const wordLine = g.label + '  ' + Math.round(liveProb) + '%';
         ctx.fillText(wordLine, tx, ly - (detA>0.05? fL*0.30 : -fL*0.34));
         ctx.shadowBlur = 0;
-        // $price detail (only once near)
         if(detA > 0.05){
           ctx.font = `700 ${fP}px 'Space Mono'`;
           ctx.fillStyle = rgba(COL.text, 0.92*detA);
@@ -595,8 +600,7 @@ const TAIL = (()=>{
     // ════════════════════════════════════════════════════════════
     const STEP = 0.7;                  // minute step along track
     const FAR  = 84;                   // how far ahead we draw
-    const HALF = 0.085;                // track half-width in world-x at unit
-    // Build left/right edge screen points
+    const HALF = 0.16;                 // track half-width in world-x at unit
     const pts = [];
     for(let d=0; d<=FAR; d+=STEP){
       const minHere = camMin + d;
@@ -612,13 +616,12 @@ const TAIL = (()=>{
     for(let i=0; i<pts.length-1; i++){
       const a=pts[i], b=pts[i+1];
       const fade = TAIL.clamp(1 - a.d/FAR, 0, 1);
-      // colour the segment by recent price slope (up=lime, down=crimson)
       const slope = priceAt(a.minHere+STEP) - priceAt(a.minHere);
       const segCol = slope >= 0 ? COL.lime : COL.crimsonL;
       const t = TAIL.clamp(Math.abs(slope)*1.6, 0, 1);
       const grd = ctx.createLinearGradient(a.cL.x,a.cL.y, a.cR.x,a.cR.y);
       grd.addColorStop(0, mix(COL.limeD, segCol, t, 0.0));
-      grd.addColorStop(0.5, mix(COL.limeD, segCol, t, 0.30*fade));
+      grd.addColorStop(0.5, mix(COL.limeD, segCol, t, 0.34*fade));
       grd.addColorStop(1, mix(COL.limeD, segCol, t, 0.0));
       ctx.fillStyle = grd;
       ctx.beginPath();
@@ -630,13 +633,12 @@ const TAIL = (()=>{
     // cross-ties (rungs) for speed read
     for(let i=0;i<pts.length;i++){
       const p=pts[i];
-      // tie every ~3 minutes, animated to flow toward camera
-      const phase = (p.minHere*1.0) ;
+      const phase = (p.minHere*1.0);
       if(Math.floor(phase) % 3 !== 0) continue;
       const fade = TAIL.clamp(1 - p.d/FAR, 0, 1);
       const slope = priceAt(p.minHere+STEP)-priceAt(p.minHere);
       const segCol = slope>=0?COL.lime:COL.crimsonL;
-      ctx.strokeStyle = rgba(segCol, 0.28*fade);
+      ctx.strokeStyle = rgba(segCol, 0.30*fade);
       ctx.lineWidth = Math.max(1, p.cC.px*0.010);
       ctx.beginPath(); ctx.moveTo(p.cL.x,p.cL.y); ctx.lineTo(p.cR.x,p.cR.y); ctx.stroke();
     }
@@ -648,10 +650,10 @@ const TAIL = (()=>{
       ctx.lineCap='round'; ctx.lineJoin='round';
       for(let i=0;i<pts.length-1;i++){
         const a=getPt(pts[i]), b=getPt(pts[i+1]);
-        const fade = TAIL.clamp(1 - pts[i].d/FAR, 0.06, 1);
-        ctx.shadowBlur = 14*fade;
-        ctx.strokeStyle = rgba(COL.limeL, 0.55*fade);
-        ctx.lineWidth = Math.max(1, pts[i].cC.px*0.007);
+        const fade = TAIL.clamp(1 - pts[i].d/FAR, 0.08, 1);
+        ctx.shadowBlur = 16*fade;
+        ctx.strokeStyle = rgba(COL.limeL, 0.6*fade);
+        ctx.lineWidth = Math.max(1.2, pts[i].cC.px*0.008);
         ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
       }
       ctx.restore();
@@ -665,12 +667,12 @@ const TAIL = (()=>{
     ctx.lineCap='round'; ctx.lineJoin='round';
     for(let i=0;i<pts.length-1;i++){
       const a=pts[i], b=pts[i+1];
-      const fade = TAIL.clamp(1 - a.d/FAR, 0.08, 1);
+      const fade = TAIL.clamp(1 - a.d/FAR, 0.10, 1);
       const slope = priceAt(a.minHere+STEP)-priceAt(a.minHere);
       const segCol = slope>=0?COL.lime:COL.crimsonL;
-      ctx.shadowBlur = 26*fade;
-      ctx.strokeStyle = rgba(segCol, 0.95*fade);
-      ctx.lineWidth = Math.max(1.5, a.cC.px*0.022);
+      ctx.shadowBlur = 28*fade;
+      ctx.strokeStyle = rgba(segCol, 0.97*fade);
+      ctx.lineWidth = Math.max(2, a.cC.px*0.024);
       ctx.beginPath(); ctx.moveTo(a.cC.x,a.cC.y); ctx.lineTo(b.cC.x,b.cC.y); ctx.stroke();
     }
     ctx.restore();
@@ -678,55 +680,48 @@ const TAIL = (()=>{
     // ── the LIVE NOSE: a bright marker at the camera's price (d=0) ──
     {
       const nose = pts[0];
-      // dynamic glow puck riding the very front of the track
-      const ng = ctx.createRadialGradient(nose.cC.x, nose.cC.y, 0, nose.cC.x, nose.cC.y, 60);
-      ng.addColorStop(0, rgba('#ffffff', 0.95));
-      ng.addColorStop(0.25, rgba(COL.limeL, 0.85));
+      const ng = ctx.createRadialGradient(nose.cC.x, nose.cC.y, 0, nose.cC.x, nose.cC.y, 70);
+      ng.addColorStop(0, rgba('#ffffff', 0.97));
+      ng.addColorStop(0.25, rgba(COL.limeL, 0.88));
       ng.addColorStop(1, rgba(COL.lime, 0));
       ctx.fillStyle = ng;
-      ctx.beginPath(); ctx.arc(nose.cC.x, nose.cC.y, 60, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(nose.cC.x, nose.cC.y, 70, 0, 7); ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(nose.cC.x, nose.cC.y, 7, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(nose.cC.x, nose.cC.y, 8, 0, 7); ctx.fill();
     }
 
     // ════════════════════════════════════════════════════════════
-    //  FLOATING EVENT LABELS — streak past above the track. Labels are
-    //  lifted clear of the track, nudged apart vertically when two events
-    //  are close in depth, and drawn far→near so the nearest sits on top.
+    //  FLOATING EVENT LABELS — streak past above the track, far→near.
     // ════════════════════════════════════════════════════════════
     const evVis = EVENTS
       .map(ev=>({ ev, minAhead: ev.min - camMin }))
       .filter(e=> e.minAhead > -1.5 && e.minAhead < 58)
       .sort((a,b)=> b.minAhead - a.minAhead);          // far → near
-    const placed = [];                                  // {y, lift} for collision nudging
+    const placed = [];
     for(const {ev, minAhead} of evVis){
       const head = headingAt(ev.min);
       const trackY = pY(priceAt(ev.min));
       const tp = project(head, trackY, Math.max(0,minAhead));     // anchor on the track
-      // base label position: lifted above the anchor in screen space
-      let p = project(head, trackY + 0.30, Math.max(0, minAhead));
+      let p = project(head, trackY + 0.42, Math.max(0, minAhead));
       const fade = TAIL.clamp(1 - minAhead/50, 0, 1) * TAIL.clamp((minAhead+1.5)/2.5, 0, 1);
       if(fade<=0.02) continue;
-      const sz = Math.round(TAIL.clamp(p.px*0.16, 13, 30));
-      // nudge up if it would collide with an already-placed (farther) label
+      const sz = Math.round(TAIL.clamp(p.px*0.16, 14, 32));
       let ly = p.y;
-      for(const q of placed){ if(Math.abs(ly - q.y) < sz*1.8 && Math.abs(p.x - q.x) < 320){ ly = q.y - sz*1.9; } }
+      for(const q of placed){ if(Math.abs(ly - q.y) < sz*1.8 && Math.abs(p.x - q.x) < 340){ ly = q.y - sz*1.9; } }
       placed.push({ y:ly, x:p.x });
       ctx.textAlign='left';
       ctx.font = `700 ${sz}px 'Space Mono'`;
-      // leader from the track anchor up to the label
-      ctx.strokeStyle = rgba(ev.col, 0.5*fade); ctx.lineWidth=Math.max(1,p.px*0.006);
+      ctx.strokeStyle = rgba(ev.col, 0.55*fade); ctx.lineWidth=Math.max(1,p.px*0.006);
       ctx.beginPath(); ctx.moveTo(tp.x,tp.y); ctx.lineTo(p.x, ly+sz*0.5); ctx.stroke();
-      ctx.fillStyle = rgba(ev.col, 0.6*fade);
+      ctx.fillStyle = rgba(ev.col, 0.65*fade);
       ctx.beginPath(); ctx.arc(tp.x,tp.y, Math.max(2.5,p.px*0.014),0,7); ctx.fill();
-      // label chip (opaque background so it stays legible over the track)
       const tw = ctx.measureText(ev.text).width;
-      ctx.fillStyle = rgba('#0A0C10', 0.86*fade);
+      ctx.fillStyle = rgba('#0A0C10', 0.88*fade);
       ctx.fillRect(p.x-8, ly-sz*0.95, tw+16, sz*1.6);
-      ctx.fillStyle = rgba(ev.col, 0.4*fade);
+      ctx.fillStyle = rgba(ev.col, 0.45*fade);
       ctx.fillRect(p.x-8, ly-sz*0.95, 3, sz*1.6);          // colour tab
       ctx.fillStyle = rgba(ev.col, 0.99*fade);
-      ctx.shadowColor = rgba(ev.col, 0.55*fade); ctx.shadowBlur=8;
+      ctx.shadowColor = rgba(ev.col, 0.6*fade); ctx.shadowBlur=8;
       ctx.fillText(ev.text, p.x+4, ly+sz*0.34);
       ctx.shadowBlur=0;
     }
