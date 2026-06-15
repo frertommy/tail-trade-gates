@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Gate Ladder · FRST-PERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video Template (1920×1080, no audio)
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --amber:#fbbf24; --amber-l:#fcd34d; --amber-d:#d99e10;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --ease-trail:cubic-bezier(.25,.1,.25,1);
+    --ease-3d:cubic-bezier(.6,.05,.2,.95);
+    --ease-bounce:cubic-bezier(.34,1.56,.4,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:var(--bg);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.045; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(130% 120% at 50% 46%, transparent 52%, rgba(0,0,0,.62) 100%); }
+
+  .wm{ position:absolute; left:64px; bottom:50px; z-index:80; color:#fff; opacity:.82; display:flex; align-items:center; gap:14px; }
+  .wm .mark{ height:34px; width:auto; display:block; }
+  .wm .mark svg{ height:34px; width:auto; display:block; }
+  .wm .tagline{ font-family:var(--mono); font-size:13px; letter-spacing:.34em; color:var(--text-2); text-transform:uppercase; }
+
+  /* ===== SCENE STYLES ===== */
+  #sceneFade{ position:absolute; inset:0; z-index:5; will-change:opacity; }
+  #chart{ position:absolute; inset:0; z-index:10; }
+
+  /* top-left ticker block */
+  .hud-tl{ position:absolute; left:64px; top:54px; z-index:60; }
+  .hud-tl .league{ font-family:var(--mono); font-size:14px; letter-spacing:.26em; color:var(--text-2); text-transform:uppercase; margin-bottom:10px; }
+  .hud-tl .tk{ display:flex; align-items:baseline; gap:18px; }
+  .hud-tl .ticker{ font-family:var(--mono); font-weight:700; font-size:40px; letter-spacing:.02em; color:var(--text); }
+  .hud-tl .px{ font-family:var(--mono); font-weight:700; font-size:40px; letter-spacing:.01em; color:var(--lime); font-variant-numeric:tabular-nums; transition:color .25s linear; }
+  .hud-tl .sub{ margin-top:8px; font-size:15px; letter-spacing:.04em; color:var(--muted); display:flex; align-items:center; gap:12px; }
+  .hud-tl .delta{ font-family:var(--mono); font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; }
+
+  /* top-right scoreboard */
+  .hud-tr{ position:absolute; right:64px; top:54px; z-index:60; display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
+  .scorebar{ display:flex; align-items:center; gap:18px; background:rgba(15,20,25,.66); border:1px solid var(--border); border-radius:var(--r-lg);
+    padding:13px 20px; backdrop-filter:blur(6px); }
+  .scorebar .team{ font-family:var(--font); font-weight:600; font-size:21px; letter-spacing:.06em; color:var(--text); }
+  .scorebar .team.dim{ color:var(--text-2); font-weight:500; }
+  .scorebar .score{ font-family:var(--mono); font-weight:700; font-size:26px; color:var(--text); font-variant-numeric:tabular-nums; min-width:62px; text-align:center;
+    transition:color .2s linear, transform .2s var(--ease-bounce); }
+  .clockpill{ display:flex; align-items:center; gap:10px; }
+  .clockpill .dot{ width:9px; height:9px; border-radius:50%; background:var(--crimson-l); box-shadow:0 0 10px var(--crimson-l); }
+  .clockpill .clk{ font-family:var(--mono); font-weight:700; font-size:22px; letter-spacing:.06em; color:var(--text); font-variant-numeric:tabular-nums; }
+  .clockpill .live{ font-family:var(--mono); font-size:12px; letter-spacing:.28em; color:var(--text-2); }
+
+  /* gate ladder labels (positioned by JS in stage coords).
+     Chips are OPAQUE and sit flush to the right rail so gate/beam lines that
+     terminate at their left edge dock cleanly into a colored tab — nothing
+     ever draws through the text. */
+  .gate-lab{ position:absolute; z-index:50; right:64px; transform:translateY(-50%); display:flex; align-items:center;
+    pointer-events:none; will-change:transform,opacity; }
+  .gate-lab .chip{ display:flex; align-items:center; gap:16px; padding:11px 20px 11px 18px; border-radius:var(--r-md);
+    background:#0C0E12; border:1px solid; position:relative; box-shadow:0 6px 24px rgba(0,0,0,.55); }
+  .gate-lab .chip::before{ content:''; position:absolute; left:-1px; top:8px; bottom:8px; width:4px; border-radius:3px; }
+  .gate-lab .glyph{ font-family:var(--font); font-weight:700; font-size:14px; letter-spacing:.22em; min-width:48px; }
+  .gate-lab .price{ font-family:var(--mono); font-weight:700; font-size:25px; font-variant-numeric:tabular-nums; color:var(--text); }
+  .gate-lab .prob{ font-family:var(--mono); font-weight:700; font-size:17px; font-variant-numeric:tabular-nums; min-width:50px; text-align:right; }
+  .gate-lab.win  .chip{ border-color:rgba(178,237,104,.6); } .gate-lab.win .glyph,.gate-lab.win .prob{ color:var(--lime); }  .gate-lab.win  .chip::before{ background:var(--lime); box-shadow:0 0 12px var(--lime); }
+  .gate-lab.draw .chip{ border-color:rgba(251,191,36,.55); } .gate-lab.draw .glyph,.gate-lab.draw .prob{ color:var(--amber); } .gate-lab.draw .chip::before{ background:var(--amber); box-shadow:0 0 12px var(--amber); }
+  .gate-lab.loss .chip{ border-color:rgba(212,19,90,.55); }  .gate-lab.loss .glyph,.gate-lab.loss .prob{ color:var(--crimson-l); } .gate-lab.loss .chip::before{ background:var(--crimson-l); box-shadow:0 0 12px var(--crimson-l); }
+
+  /* "OUTCOME GATES" caption on the right rail */
+  .ladder-cap{ position:absolute; right:64px; z-index:50; font-family:var(--mono); font-size:12px; letter-spacing:.34em;
+    color:var(--text-2); text-transform:uppercase; transform:translateY(-50%); opacity:0; }
+
+  /* goal burst */
+  .goal{ position:absolute; z-index:70; transform:translate(-50%,-50%) scale(.6); opacity:0; pointer-events:none; will-change:transform,opacity; }
+  .goal .card{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:18px 30px; border-radius:var(--r-xl);
+    background:linear-gradient(180deg, rgba(178,237,104,.16), rgba(178,237,104,.05));
+    border:1.5px solid var(--lime); box-shadow:0 0 60px rgba(178,237,104,.35), inset 0 0 30px rgba(178,237,104,.1); }
+  .goal .kick{ font-family:var(--mono); font-size:13px; letter-spacing:.36em; color:var(--lime); }
+  .goal .big{ font-family:var(--font); font-weight:700; font-size:34px; letter-spacing:.05em; color:#fff; white-space:nowrap; }
+  .goal .snap{ font-family:var(--mono); font-size:14px; letter-spacing:.06em; color:var(--lime-l); font-variant-numeric:tabular-nums; }
+
+  /* "NOW" tag riding the guide */
+  .nowtag{ position:absolute; z-index:55; transform:translate(-50%,0); font-family:var(--mono); font-weight:700; font-size:12px;
+    letter-spacing:.3em; color:var(--text); pointer-events:none; }
+  .nowtag .b{ padding:4px 9px; border-radius:5px; background:rgba(230,232,235,.1); border:1px solid rgba(230,232,235,.25); }
+
+  /* settle stamp (appears at climb-through) — opaque card, placed clear of the rail */
+  .settle{ position:absolute; z-index:62; transform:translate(0,-50%); opacity:0; pointer-events:none; will-change:opacity,transform;
+    padding:13px 20px; border-radius:var(--r-lg); background:rgba(12,14,18,.92); border:1px solid rgba(178,237,104,.45);
+    box-shadow:0 10px 36px rgba(0,0,0,.6), 0 0 30px rgba(178,237,104,.16); text-align:left; }
+  .settle .row{ display:flex; align-items:baseline; gap:12px; }
+  .settle .tag{ font-family:var(--mono); font-size:12px; letter-spacing:.26em; color:var(--lime); }
+  .settle .val{ font-family:var(--mono); font-weight:700; font-size:32px; color:var(--lime); font-variant-numeric:tabular-nums; text-shadow:0 0 22px rgba(178,237,104,.5); }
+  .settle .miss{ margin-top:6px; font-family:var(--mono); font-size:13px; letter-spacing:.04em; color:var(--text-2); font-variant-numeric:tabular-nums; }
+  .settle .miss b{ color:var(--lime-l); font-weight:700; }
+
+  /* projection target label — floats just ABOVE the target gate line, left of
+     the chip, on its own opaque pill so it never collides with the price text. */
+  .beamtag{ position:absolute; z-index:56; transform:translate(-100%,-50%); font-family:var(--mono); font-weight:700; font-size:12px;
+    letter-spacing:.2em; pointer-events:none; opacity:0; will-change:opacity; white-space:nowrap;
+    padding:5px 11px; border-radius:6px; background:rgba(12,14,18,.85); border:1px solid rgba(42,48,56,.9); }
+</style>
+</head>
+<body data-loop-ms="14000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <!-- ============================================================
+           SCENE — Variant 02: GATE LADDER · FRST-PERP (forest)
+           ============================================================ -->
+      <!-- everything that animates lives in #sceneFade so the whole scene
+           fades to black together at the loop seam (t=LOOP == t=0). -->
+      <div id="sceneFade">
+      <canvas id="chart" width="1920" height="1080"></canvas>
+
+      <!-- top-left ticker -->
+      <div class="hud-tl">
+        <div class="league" id="league">EUROPA LEAGUE · APR 30</div>
+        <div class="tk">
+          <div class="ticker" id="ticker">FRST-PERP</div>
+          <div class="px" id="px">$118.03</div>
+        </div>
+        <div class="sub">
+          <span id="subjlabel">FOREST vs ASTON VILLA</span>
+          <span class="delta" id="delta">+0.00%</span>
+        </div>
+      </div>
+
+      <!-- top-right scoreboard + clock -->
+      <div class="hud-tr">
+        <div class="scorebar">
+          <span class="team" id="teamH">FOREST</span>
+          <span class="score" id="score">0–0</span>
+          <span class="team dim" id="teamA">ASTON VILLA</span>
+        </div>
+        <div class="clockpill">
+          <span class="dot"></span>
+          <span class="clk" id="clk">0'</span>
+          <span class="live">LIVE</span>
+        </div>
+      </div>
+
+      <!-- gate ladder caption -->
+      <div class="ladder-cap" id="ladderCap">OUTCOME&nbsp;GATES</div>
+
+      <!-- gate labels (price + live prob) -->
+      <div class="gate-lab win" id="gWin">
+        <div class="chip"><span class="glyph">WIN</span><span class="price">$123.47</span><span class="prob" id="gWinP">32%</span></div>
+      </div>
+      <div class="gate-lab draw" id="gDraw">
+        <div class="chip"><span class="glyph">DRAW</span><span class="price">$118.31</span><span class="prob" id="gDrawP">30%</span></div>
+      </div>
+      <div class="gate-lab loss" id="gLoss">
+        <div class="chip"><span class="glyph">LOSE</span><span class="price">$113.30</span><span class="prob" id="gLossP">38%</span></div>
+      </div>
+
+      <!-- projection beam target tag -->
+      <div class="beamtag" id="beamTag">PROJECTED&nbsp;→</div>
+
+      <!-- NOW tag -->
+      <div class="nowtag" id="nowTag"><span class="b">NOW</span></div>
+
+      <!-- settle stamp -->
+      <div class="settle" id="settle">
+        <div class="row"><span class="tag">SETTLED&nbsp;·&nbsp;WIN</span><span class="val" id="settleVal">$123.46</span></div>
+        <div class="miss">PROJECTION&nbsp;$123.47&nbsp;·&nbsp;MISS&nbsp;<b>$0.01</b></div>
+      </div>
+
+      <!-- 89' goal burst -->
+      <div class="goal" id="goal">
+        <div class="card">
+          <div class="kick">GOAL</div>
+          <div class="big" id="goalBig">89' FOREST 1–0</div>
+          <div class="snap" id="goalSnap">WIN PROB 23% → 74%</div>
+        </div>
+      </div>
+
+      </div><!-- /#sceneFade -->
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+      <div class="wm"><span class="mark" id="wmMark"></span><span class="tagline">THE&nbsp;FIRST&nbsp;PERP&nbsp;FOR&nbsp;SPORTS</span></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 02: GATE LADDER (match: forest)
+   ============================================================ */
+(function(){
+  const M  = window.MATCHES.forest;
+  const priceAt = (min)=>window.MATCHES_priceAt(M, min);
+  const oddsAt  = (min)=>window.MATCHES_oddsAt(M, min);
+
+  const clamp = TAIL.clamp, lerp = TAIL.lerp, E = TAIL.E;
+
+  // ---- watermark ----
+  document.getElementById('wmMark').innerHTML = TAIL.MARK;
+  document.getElementById('league').textContent = M.league.toUpperCase();
+  document.getElementById('subjlabel').textContent = M.subject + ' vs ' + M.opponent;
+  document.getElementById('teamH').textContent = M.subject;
+  document.getElementById('teamA').textContent = M.opponent;
+
+  // ---- canvas / plot geometry ----
+  const cv = document.getElementById('chart');
+  const ctx = cv.getContext('2d');
+  const W = 1920, H = 1080;
+
+  // plot area: leave room for the ladder labels on the right
+  const PLOT = { x0: 0, x1: 1920, yTop: 150, yBot: 980 };
+  // x where the right-rail gate chips begin — gate lines + beam terminate here
+  // (chips are right:64px, ~330px wide → left edge ≈ 1920-64-330 = 1526; dock a touch inside)
+  const LABEL_X = 1512;
+  // x-axis: minutes from KO. We anchor KO(0) to FT(120) across most of the width.
+  const X_MIN = -10, X_MAX = 132;        // a touch past ftMin(120) so the flat tail reads
+  const Y_MIN = M.priceMin, Y_MAX = M.priceMax; // 111..126
+
+  const sx = (min)=> TAIL.map(min, X_MIN, X_MAX, PLOT.x0, PLOT.x1);
+  const sy = (val)=> TAIL.map(val, Y_MIN, Y_MAX, PLOT.yBot, PLOT.yTop);
+
+  // gate y positions (price → y)
+  const GW = M.gates.win, GD = M.gates.draw, GL = M.gates.loss;
+  const yWin = sy(GW.price), yDraw = sy(GD.price), yLoss = sy(GL.price);
+
+  // ---- timeline mapping (loop-local ms → match minute + phases) ----
+  // Phases inside LOOP_MS (14000):
+  //   0     .. 900   intro: gates ladder builds, chart fades in   (hold at KO)
+  //   900   .. 8200  sweep KO(0) → just before goal (88.4')        (flat, beam leans LOSS/DRAW)
+  //   8200  .. 9300  GOAL @89': snap, burst, beam re-aim, kick      (price detaches)
+  //   9300  .. 11400 climb 89 → FT(120) through WIN gate, settle    (portal flare on pass)
+  //   11400 .. 12900 hold settled $123.46 vs $123.47               (precision beat)
+  //   12900 .. 14000 fade out to KO state for seamless loop
+  const T = {
+    introA:0,    introB:900,
+    sweepA:900,  sweepB:8200,   minA:-10,  minB:88.4,
+    goalA:8200,  goalB:9300,    minGoal:89,
+    climbA:9300, climbB:11400,  minClimbA:89, minClimbB:120,
+    holdA:11400, holdB:12900,
+    fadeA:12900, fadeB:14000
+  };
+
+  // current match-minute as a function of loop-time
+  function minuteAt(tl){
+    if (tl < T.sweepA) return T.minA;
+    if (tl < T.sweepB){ const u = (tl - T.sweepA)/(T.sweepB - T.sweepA); return lerp(T.minA, T.minB, E.inOut(u)); }
+    if (tl < T.goalB){  const u = (tl - T.goalA)/(T.goalB - T.goalA); return lerp(T.minB, T.minGoal, E.out(u)); }
+    if (tl < T.climbB){ const u = (tl - T.climbA)/(T.climbB - T.climbA); return lerp(T.minClimbA, T.minClimbB, E.inOut(u)); }
+    return T.minClimbB; // hold + fade at FT
+  }
+
+  // smoothstep helper for windowed reveals
+  const ss = (a,b,t)=> clamp((t-a)/(b-a),0,1);
+
+  // ---- precompute the price polyline in screen space, densely sampled & smoothed ----
+  // We sample priceAt across X for a smooth area; the post-goal climb is data-driven,
+  // but we add a deliberate "detach + accelerate through WIN gate" so causality is unmistakable.
+  function priceCurveValue(min){
+    // base from real data
+    let v = priceAt(min);
+    return v;
+  }
+
+  // Catmull-Rom -> bezier smoothing of a list of [x,y]
+  function smoothPath(pts){
+    if (pts.length < 2) return '';
+    let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+    for (let i=0;i<pts.length-1;i++){
+      const p0 = pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+      const c1x = p1[0] + (p2[0]-p0[0])/6, c1y = p1[1] + (p2[1]-p0[1])/6;
+      const c2x = p2[0] - (p3[0]-p1[0])/6, c2y = p2[1] - (p3[1]-p1[1])/6;
+      d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+    }
+    return d;
+  }
+
+  // Build the canvas curve directly (smoothed) up to the live minute.
+  function buildPoints(maxMin){
+    const pts = [];
+    const step = 0.6; // minutes per sample
+    for (let mn = X_MIN; mn <= maxMin + 0.0001; mn += step){
+      const m2 = Math.min(mn, maxMin);
+      pts.push([ sx(m2), sy(priceCurveValue(m2)) ]);
+      if (m2 >= maxMin) break;
+    }
+    // ensure exact endpoint
+    pts.push([ sx(maxMin), sy(priceCurveValue(maxMin)) ]);
+    return pts;
+  }
+
+  // draw a smoothed polyline on canvas via Catmull-Rom
+  function strokeSmooth(pts){
+    if (pts.length<2) return;
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i=0;i<pts.length-1;i++){
+      const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+      const c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+      const c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+      ctx.bezierCurveTo(c1x,c1y,c2x,c2y,p2[0],p2[1]);
+    }
+  }
+
+  // ---- DOM refs ----
+  const el = {
+    sceneFade:document.getElementById('sceneFade'),
+    px:document.getElementById('px'), delta:document.getElementById('delta'),
+    score:document.getElementById('score'), clk:document.getElementById('clk'),
+    gWin:document.getElementById('gWin'), gDraw:document.getElementById('gDraw'), gLoss:document.getElementById('gLoss'),
+    gWinP:document.getElementById('gWinP'), gDrawP:document.getElementById('gDrawP'), gLossP:document.getElementById('gLossP'),
+    ladderCap:document.getElementById('ladderCap'),
+    goal:document.getElementById('goal'), goalBig:document.getElementById('goalBig'), goalSnap:document.getElementById('goalSnap'),
+    nowTag:document.getElementById('nowTag'),
+    settle:document.getElementById('settle'), settleVal:document.getElementById('settleVal'),
+    beamTag:document.getElementById('beamTag')
+  };
+
+  // position gate labels at their y (constant) — scaled to stage coords (stage is 1920x1080 already)
+  el.gWin.style.top  = yWin + 'px';
+  el.gDraw.style.top = yDraw + 'px';
+  el.gLoss.style.top = yLoss + 'px';
+  el.ladderCap.style.top = (yWin - 64) + 'px';
+  el.beamTag.style.right = '80px';
+
+  // Match-clock display. Plot-minutes ≤90 read directly (goal at 89 reads 89').
+  // The post-goal climb (plot-min 90→120) compresses into a believable stoppage
+  // window 90+1'..90+6', then settles to FT. Never shows absurd values like 90+19'.
+  function clockLabel(min){
+    if (min <= 0) return "0'";
+    if (min <= 90) return Math.round(min) + "'";
+    if (min >= 116) return "FT";
+    const stop = Math.max(1, Math.round(TAIL.map(min, 90, 116, 1, 6))); // 90→+1 … 116→+6
+    return "90+" + stop + "'";
+  }
+
+  const fmt = (v)=> '$' + v.toFixed(2);
+
+  // ---- main loop ----
+  TAIL.loop((tl, now)=>{
+    const mn = minuteAt(tl);
+    const price = priceCurveValue(mn);
+    const od = oddsAt(mn);
+
+    // global fade for seamless loop (fade out at end, fade in at start).
+    // Applied ONCE to #sceneFade so canvas + HUD + overlays fade together →
+    // t=LOOP and t=0 are both fully black, giving a seamless cut.
+    const fadeIn  = ss(T.introA, 520, tl);
+    const fadeOut = 1 - ss(T.fadeA, T.fadeB-120, tl);
+    const vis = Math.min(fadeIn, fadeOut);
+    el.sceneFade.style.opacity = vis.toFixed(3);
+
+    // ---------- CANVAS ---------- (draw at full alpha; wrapper handles fade)
+    ctx.clearRect(0,0,W,H);
+    ctx.save();
+    ctx.globalAlpha = 1;
+
+    // subtle plot baseline grid (horizontal price ticks)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(42,48,56,0.55)';
+    ctx.fillStyle = 'rgba(140,145,154,0.55)';
+    ctx.font = "400 13px 'Space Mono', monospace";
+    for (let p = 112; p <= 125; p += 2){
+      const y = sy(p);
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(W-60, y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---------- GATE LADDER (glowing horizontal levels) ----------
+    const ladderBuild = ss(T.introA+120, T.introB, tl); // 0..1 ladder draws in
+    const winHot = tl >= T.goalA;                        // WIN gate ignites at the goal
+    drawGate(yWin,  '#B2ED68', GW, od.win,  ladderBuild, 0.00, tl, winHot, 'win');
+    drawGate(yDraw, '#fbbf24', GD, od.draw, ladderBuild, 0.18, tl, false,  'draw');
+    drawGate(yLoss, '#D4135A', GL, od.loss, ladderBuild, 0.36, tl, false,  'loss');
+
+    // ---------- NOW guide (vertical) ----------
+    const nowX = sx(mn);
+    const guideAlpha = ss(T.introA+260, T.introB, tl);
+    ctx.save();
+    ctx.globalAlpha = guideAlpha;
+    const gg = ctx.createLinearGradient(0, PLOT.yTop-30, 0, PLOT.yBot+30);
+    gg.addColorStop(0, 'rgba(230,232,235,0.02)');
+    gg.addColorStop(0.5, 'rgba(230,232,235,0.34)');
+    gg.addColorStop(1, 'rgba(230,232,235,0.02)');
+    ctx.strokeStyle = gg; ctx.lineWidth = 1.5;
+    ctx.setLineDash([5,7]);
+    ctx.beginPath(); ctx.moveTo(nowX, PLOT.yTop-30); ctx.lineTo(nowX, PLOT.yBot+30); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // ---------- PROJECTION BEAM (NOW → most-likely gate) ----------
+    // The beam re-aims live but only LOCKS onto WIN at the goal moment — before
+    // the goal it leans DRAW/LOSS (Forest are flat underdogs), even though the
+    // odds feed begins interpolating the snap a beat early. This keeps the
+    // "beam re-aims hard to WIN at 89'" causality crisp.
+    const postGoal = tl >= T.goalA;
+    let target, beamColor;
+    if (postGoal){ target = yWin; beamColor='#B2ED68'; }
+    else {
+      // pre-goal: choose between DRAW and LOSS only (whichever the feed favors)
+      if (od.loss >= od.draw){ target=yLoss; beamColor='#D4135A'; }
+      else { target=yDraw; beamColor='#fbbf24'; }
+    }
+    const priceY = sy(price);
+    const beamAlpha = ss(T.introB-200, T.introB+400, tl);
+    drawBeam(nowX, priceY, target, beamColor, beamAlpha, tl, postGoal);
+
+    // ---------- PRICE AREA + LINE (drawn up to NOW) ----------
+    const pts = buildPoints(mn);
+
+    // area fill (gradient lime)
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    strokeSmooth(pts);
+    ctx.lineTo(pts[pts.length-1][0], PLOT.yBot+2);
+    ctx.lineTo(pts[0][0], PLOT.yBot+2);
+    ctx.closePath();
+    const ag = ctx.createLinearGradient(0, PLOT.yTop, 0, PLOT.yBot);
+    ag.addColorStop(0, 'rgba(178,237,104,0.30)');
+    ag.addColorStop(0.55, 'rgba(178,237,104,0.10)');
+    ag.addColorStop(1, 'rgba(178,237,104,0.00)');
+    ctx.fillStyle = ag; ctx.fill();
+    ctx.restore();
+
+    // glow line
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    // soft outer glow
+    ctx.shadowColor = 'rgba(178,237,104,0.65)';
+    ctx.shadowBlur = 22;
+    ctx.strokeStyle = '#B2ED68';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); strokeSmooth(pts); ctx.stroke();
+    // crisp core
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#C4F285';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); strokeSmooth(pts); ctx.stroke();
+    ctx.restore();
+
+    // ---------- PORTAL FLARE when price crosses the WIN gate ----------
+    // price crosses WIN gate ($123.47) on the climb. Detect crossing window.
+    const crossMin = crossWinMinute();           // ~ minute where price hits 123.47
+    const crossProg = ss(crossMin-2.2, crossMin+2.2, mn);
+    if (postGoal && crossProg>0 && crossProg<1){
+      drawPortal(nowX, yWin, (1 - Math.abs(crossProg-0.5)*2));
+    }
+
+    // ---------- HEAD dot (price at NOW) ----------
+    const headPulse = postGoal ? (0.5 + 0.5*Math.sin(now/120)) : (0.5+0.5*Math.sin(now/300));
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.shadowColor='rgba(178,237,104,0.9)'; ctx.shadowBlur = 18 + headPulse*14;
+    ctx.fillStyle='#C4F285';
+    ctx.beginPath(); ctx.arc(nowX, priceY, 6.5, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#0C0E12';
+    ctx.beginPath(); ctx.arc(nowX, priceY, 2.6, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    ctx.restore(); // global alpha
+
+    // ---------- DOM HUD ----------
+    // price color: lime if >= KO, else dim toward white when flat
+    el.px.textContent = fmt(price);
+    const up = price >= M.koPrice;
+    el.px.style.color = postGoal ? '#B2ED68' : (up ? '#B2ED68' : '#E6E8EB');
+    const dPct = ((price - M.koPrice)/M.koPrice)*100;
+    el.delta.textContent = (dPct>=0?'+':'') + dPct.toFixed(2) + '%';
+    el.delta.style.color = dPct>=0 ? '#B2ED68' : '#D4135A';
+
+    // clock + score — flip exactly at the goal moment, in sync with the burst
+    el.clk.textContent = clockLabel(mn);
+    const scored = tl >= T.goalA;
+    el.score.textContent = scored ? '1–0' : '0–0';
+    el.score.style.color = scored ? '#B2ED68' : '#E6E8EB';
+    if (scored){
+      const pop = 1 + 0.22*(1-ss(T.goalA, T.goalA+420, tl));
+      el.score.style.transform = `scale(${pop.toFixed(3)})`;
+    } else {
+      el.score.style.transform = 'scale(1)';
+    }
+
+    // live gate probabilities (update in lockstep with odds)
+    el.gWinP.textContent  = Math.round(od.win)  + '%';
+    el.gDrawP.textContent = Math.round(od.draw) + '%';
+    el.gLossP.textContent = Math.round(od.loss) + '%';
+
+    // gate label opacity / emphasis: the live most-likely gate brightens
+    const ladderShown = ss(T.introA+200, T.introB, tl);
+    setGateEmphasis(el.gWin,  target===yWin,  ladderShown);
+    setGateEmphasis(el.gDraw, target===yDraw, ladderShown);
+    setGateEmphasis(el.gLoss, target===yLoss, ladderShown);
+    el.ladderCap.style.opacity = ladderShown;
+
+    // NOW tag follows the guide — pinned at the BOTTOM of the guide so it never
+    // collides with the top-right scoreboard as the guide sweeps to the right edge.
+    el.nowTag.style.left = nowX + 'px';
+    el.nowTag.style.top  = (PLOT.yBot + 26) + 'px';
+    el.nowTag.style.opacity = guideAlpha;
+
+    // beam target tag — floats just LEFT of the target chip, lifted ABOVE the
+    // gate line so it never overlaps the chip's price/prob text.
+    el.beamTag.style.left = (LABEL_X - 14) + 'px';   // right edge docks near chip (translate -100%)
+    el.beamTag.style.right = 'auto';
+    el.beamTag.style.top = (target - 30) + 'px';
+    el.beamTag.style.opacity = (beamAlpha * 0.95).toFixed(3);
+    if (target===yWin){ el.beamTag.style.color='#B2ED68'; el.beamTag.textContent='PROJECTED → WIN'; }
+    else if (target===yDraw){ el.beamTag.style.color='#fbbf24'; el.beamTag.textContent='PROJECTED → DRAW'; }
+    else { el.beamTag.style.color='#D4135A'; el.beamTag.textContent='PROJECTED → LOSE'; }
+
+    // ---------- GOAL BURST ----------
+    const gp = ss(T.goalA, T.goalA+300, tl) * (1 - ss(T.climbA+250, T.climbA+850, tl)); // appear at goal, fade as climb settles
+    if (gp > 0.001){
+      const s = 0.7 + 0.3*E.bounce(ss(T.goalA, T.goalA+520, tl));
+      el.goal.style.opacity = gp.toFixed(3);
+      el.goal.style.transform = `translate(-50%,-50%) scale(${s.toFixed(3)})`;
+      // place burst above the detach point, lifted clear of the WIN gate line + right rail
+      el.goal.style.left = clamp(sx(T.minGoal) - 70, 420, 1120) + 'px';
+      el.goal.style.top  = Math.min(sy(priceCurveValue(T.minGoal)) - 196, yWin - 96) + 'px';
+    } else {
+      el.goal.style.opacity = '0';
+    }
+
+    // ---------- SETTLE STAMP ----------
+    // Sits BELOW the WIN gate line and left of the chip, clear of the caption.
+    const settleP = ss(T.climbB-500, T.climbB+200, tl) * (1 - ss(T.fadeA, T.fadeA+700, tl));
+    el.settle.style.opacity = settleP.toFixed(3);
+    el.settle.style.top  = (yWin + 92) + 'px';
+    el.settle.style.left = (LABEL_X - 560) + 'px';
+    el.settle.style.transform = `translate(0,-50%) translateY(${((1-E.out(ss(T.climbB-500,T.climbB+200,tl)))*16).toFixed(1)}px)`;
+  });
+
+  // ===== drawing helpers =====
+
+  function drawGate(y, color, gate, liveProb, build, delay, tl, hot, kind){
+    // staggered draw-in width — the level sweeps from the left toward the chip
+    const localBuild = clamp((build - delay)/(1-delay), 0, 1);
+    if (localBuild <= 0) return;
+    const x1 = PLOT.x0 + 30;
+    const x2 = TAIL.lerp(x1, LABEL_X, E.out(localBuild));   // STOP at the chip edge
+
+    ctx.save();
+    // dashed reach across the plot
+    ctx.globalAlpha = hot ? 1 : 0.8;
+    ctx.setLineDash([2, 10]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color; ctx.shadowBlur = hot ? 16 : 7;
+    ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // solid glowing anchor that docks into the chip's color tab (right portion only)
+    const anchorX0 = Math.max(LABEL_X - 360, x1);
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = hot ? 22 : 11;
+    ctx.lineWidth = hot ? 3.4 : 2.6;
+    ctx.beginPath(); ctx.moveTo(anchorX0, y); ctx.lineTo(LABEL_X, y); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBeam(x0, y0, yTarget, color, alpha, tl, locked){
+    if (alpha<=0.001) return;
+    const x1 = LABEL_X;                       // dock at the chip edge, not under text
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const phase = (tl/40) % 28;               // animated dash march
+    ctx.setLineDash([10, 14]);
+    ctx.lineDashOffset = -phase;
+    ctx.lineWidth = locked ? 3.2 : 2.4;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color; ctx.shadowBlur = locked ? 18 : 9;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    const cx = (x0 + x1)/2, cy = TAIL.lerp(y0, yTarget, 0.55);
+    ctx.quadraticCurveTo(cx, cy, x1, yTarget);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // arrowhead docking into the chip
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x1, yTarget);
+    ctx.lineTo(x1-13, yTarget-7);
+    ctx.lineTo(x1-13, yTarget+7);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPortal(x, y, a){
+    if (a<=0.001) return;
+    ctx.save();
+    ctx.globalAlpha = clamp(a,0,1);
+    // expanding ring at the gate-cross point
+    const r = 14 + (1-a)*46;
+    const g = ctx.createRadialGradient(x,y, 2, x,y, r+30);
+    g.addColorStop(0, 'rgba(196,242,133,0.9)');
+    g.addColorStop(0.4, 'rgba(178,237,104,0.45)');
+    g.addColorStop(1, 'rgba(178,237,104,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x,y, r+30, 0, Math.PI*2); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,'+(0.85*a)+')';
+    ctx.shadowColor='rgba(178,237,104,0.9)'; ctx.shadowBlur=24;
+    ctx.beginPath(); ctx.arc(x,y, r, 0, Math.PI*2); ctx.stroke();
+    // horizontal threshold streak along the WIN gate
+    ctx.globalAlpha = clamp(a,0,1)*0.8;
+    const lg = ctx.createLinearGradient(x-220, y, x+220, y);
+    lg.addColorStop(0,'rgba(178,237,104,0)');
+    lg.addColorStop(0.5,'rgba(255,255,255,0.9)');
+    lg.addColorStop(1,'rgba(178,237,104,0)');
+    ctx.strokeStyle = lg; ctx.lineWidth=5; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.moveTo(x-220,y); ctx.lineTo(x+220,y); ctx.stroke();
+    ctx.restore();
+  }
+
+  function setGateEmphasis(node, active, baseOpacity){
+    node.style.opacity = (active ? baseOpacity : baseOpacity*0.5).toFixed(3);
+    node.style.transform = `translateY(-50%) scale(${active?1.0:0.96})`;
+    node.style.filter = active ? 'none' : 'saturate(0.7)';
+  }
+
+  // Minute at which the climbing price BREACHES the WIN-gate threshold zone.
+  // NOTE (real data): the price peaks at $123.46 — $0.01 UNDER the $123.47 WIN
+  // gate — and never strictly crosses it. That $0.01 miss is the precision beat.
+  // So the portal/threshold flare fires when the head enters the WIN-gate zone
+  // (within ~$0.65 below the gate), i.e. as it visibly passes into WIN territory.
+  const WIN_ZONE = GW.price - 0.65;   // ≈ 122.82
+  let _crossMin = null;
+  function crossWinMinute(){
+    if (_crossMin!==null) return _crossMin;
+    let prev = priceCurveValue(89);
+    for (let mn=89; mn<=120; mn+=0.25){
+      const v = priceCurveValue(mn);
+      if (prev < WIN_ZONE && v >= WIN_ZONE){ _crossMin = mn; break; }
+      prev = v;
+    }
+    if (_crossMin===null) _crossMin = 110; // fallback
+    return _crossMin;
+  }
+
+})();
+
+TAIL.ready();
+</script>
+</body>
+</html>

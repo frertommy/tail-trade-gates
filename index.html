@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>TAIL.TRADE — Matchday Gates · 5 variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  :root{ --bg:#0C0E12; --border:#2A3038; --text:#E6E8EB; --muted:#8C919A; --lime:#B2ED68; --crimson:#B30F43; --cyan:#00D9F5;
+         --font:'Space Grotesk',sans-serif; --mono:'Space Mono',monospace; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; font-family:var(--font); color:var(--text); }
+  #root{ position:fixed; inset:0; background:#000; }
+
+  /* sliding deck of full-bleed frames */
+  .track{ position:absolute; inset:0; display:flex; width:500%; transition:transform .6s cubic-bezier(.16,1,.3,1); }
+  .slide{ width:20%; height:100%; position:relative; background:var(--bg); }
+  .slide iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:var(--bg); }
+  .slide .loading{ position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); font-family:var(--mono); font-size:12px; letter-spacing:.18em; }
+
+  /* chrome (auto-hides) */
+  .chrome{ position:absolute; inset:0; pointer-events:none; z-index:10; transition:opacity .4s; }
+  .chrome.hide{ opacity:0; }
+  .topbar{ position:absolute; top:0; left:0; right:0; height:60px; display:flex; align-items:center; justify-content:space-between;
+           padding:0 24px; background:linear-gradient(180deg, rgba(0,0,0,.55), transparent); }
+  .topbar .logo{ color:#fff; display:flex; align-items:center; gap:10px; }
+  .topbar .logo svg{ height:18px; width:auto; display:block; }
+  .topbar .logo .tag{ font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--lime); }
+  .topbar .tools{ display:flex; align-items:center; gap:10px; pointer-events:auto; }
+  .ctrl{ font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--text); background:rgba(20,24,30,.7);
+         border:1px solid var(--border); border-radius:7px; padding:7px 11px; cursor:pointer; text-decoration:none; transition:.15s; backdrop-filter:blur(8px); }
+  .ctrl:hover{ border-color:var(--lime); color:var(--lime); }
+  .counter{ font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.1em; }
+
+  .arrow{ position:absolute; top:50%; transform:translateY(-50%); width:52px; height:52px; border-radius:50%;
+          display:grid; place-items:center; background:rgba(20,24,30,.6); border:1px solid var(--border); color:#fff;
+          cursor:pointer; pointer-events:auto; font-size:20px; transition:.15s; backdrop-filter:blur(8px); }
+  .arrow:hover{ border-color:var(--lime); color:var(--lime); }
+  .arrow.prev{ left:22px; } .arrow.next{ right:22px; }
+
+  .caption{ position:absolute; left:0; right:0; bottom:0; padding:46px 28px 26px;
+            background:linear-gradient(0deg, rgba(0,0,0,.62), transparent); display:flex; align-items:flex-end; justify-content:space-between; gap:24px; }
+  .caption .info{ max-width:62%; }
+  .caption .cn{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--lime); }
+  .caption h2{ font-family:var(--mono); font-weight:700; font-size:20px; text-transform:uppercase; letter-spacing:.01em; margin:6px 0 4px; }
+  .caption .match{ font-family:var(--mono); font-size:11px; color:var(--cyan); letter-spacing:.06em; margin-bottom:6px; }
+  .caption p{ font-size:13px; line-height:1.55; color:var(--muted); }
+
+  .dots{ display:flex; gap:9px; align-items:center; pointer-events:auto; }
+  .dot{ width:9px; height:9px; border-radius:50%; background:#333a44; border:1px solid var(--border); cursor:pointer; transition:.2s; }
+  .dot.on{ background:var(--lime); border-color:var(--lime); box-shadow:0 0 10px rgba(178,237,104,.6); transform:scale(1.15); }
+
+  .hint{ position:absolute; bottom:26px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:10px;
+         letter-spacing:.16em; color:var(--muted); opacity:.7; }
+  @media(max-width:760px){ .caption .info{ max-width:100%; } .caption{ flex-direction:column; align-items:flex-start; } }
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="track" id="track"></div>
+
+  <div class="chrome" id="chrome">
+    <div class="topbar">
+      <div class="logo">
+        <svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z"/><path d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z"/><path d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>
+        <span class="tag">MATCHDAY GATES</span>
+      </div>
+      <div class="tools">
+        <span class="counter" id="counter">01 / 05</span>
+        <a class="ctrl" id="openBtn" target="_blank" rel="noopener">OPEN ↗</a>
+        <a class="ctrl" id="mp4Btn" target="_blank" rel="noopener" download>MP4 ↓</a>
+        <button class="ctrl" id="fsBtn">⛶ FULLSCREEN</button>
+      </div>
+    </div>
+
+    <div class="arrow prev" id="prev">‹</div>
+    <div class="arrow next" id="next">›</div>
+
+    <div class="caption">
+      <div class="info">
+        <div class="cn" id="cn">VARIANT 01</div>
+        <h2 id="ctitle">—</h2>
+        <div class="match" id="cmatch">—</div>
+        <p id="cdesc">—</p>
+      </div>
+      <div class="dots" id="dots"></div>
+    </div>
+    <div class="hint">← → to move · F for fullscreen · real Notch oracle data</div>
+  </div>
+</div>
+
+<script>
+const ITEMS = [
+  { nn:'01', slug:'outcome-fan', title:'Outcome Fan', match:'EVERTON 3–3 MAN CITY · the gate-flip',
+    desc:'The EVE-PERP price draws live as the match runs; a probability-weighted projection fan re-aims to the most-likely gate — locking on WIN at 3-1, then the 90+7′ equalizer snaps it down to the DRAW gate where it settles ($117.30).' },
+  { nn:'02', slug:'gate-ladder', title:'Gate Ladder', match:'FOREST 1–0 ASTON VILLA · the clean snap',
+    desc:'FRST-PERP sits flat on the draw/loss gates all match, then the 89′ Forest goal snaps win-prob 23%→74%, the projection beam re-aims to WIN, and the price climbs through the WIN gate to settle $123.46 — $0.01 off projection.' },
+  { nn:'03', slug:'rollercoaster', title:'Rollercoaster', match:'LIVERPOOL 2–3 MAN UTD · chasing gates',
+    desc:'A five-goal swing: 0-2 down craters the price toward the LOSS gate, the 2-2 comeback rips it back above kickoff flirting with the WIN gate, then a 77′ winner settles it on the LOSS gate ($179.09). A live MOST-LIKELY indicator swings W↔D↔L.' },
+  { nn:'04', slug:'probability-cone', title:'Probability Cone', match:'EVERTON 3–3 MAN CITY · odds re-weighting',
+    desc:'The bookmaker W/D/L probability bands render as a shifting cone of uncertainty behind the price; every goal re-weights it (14%→2%→77%→98% draw) and the live-weighted gates shift, resolving through the realized DRAW gate.' },
+  { nn:'05', slug:'matchday-hud', title:'Matchday HUD', match:'LIVERPOOL 2–3 MAN UTD · the product',
+    desc:'The integrated hero: a live scoreboard, the reacting LIV-PERP chart, and an outcome-gates panel (target price · live % · payout). Every goal ticks the score, jumps the price, and re-prices the gates — settling on the LOSS gate at full time.' },
+];
+
+const track = document.getElementById('track');
+track.innerHTML = ITEMS.map((it,i) => `
+  <div class="slide" data-i="${i}">
+    <div class="loading">LOADING · ${it.title.toUpperCase()}</div>
+    <iframe data-src="videos/${it.nn}-${it.slug}.html" title="${it.title}" allow="autoplay"></iframe>
+  </div>`).join('');
+
+const frames = [...track.querySelectorAll('iframe')];
+let idx = 0;
+
+function load(i){ const f = frames[i]; if(f && !f.src){ f.src = f.dataset.src; f.addEventListener('load',()=>{ const l=f.parentElement.querySelector('.loading'); if(l) l.style.display='none'; },{once:true}); } }
+function unload(i){ const f = frames[i]; if(f && f.src){ f.removeAttribute('src'); const l=f.parentElement.querySelector('.loading'); if(l) l.style.display='grid'; } }
+
+function render(){
+  track.style.transform = `translateX(-${idx*20}%)`;
+  document.getElementById('counter').textContent = `${ITEMS[idx].nn} / 05`;
+  document.getElementById('cn').textContent = `VARIANT ${ITEMS[idx].nn}`;
+  document.getElementById('ctitle').textContent = ITEMS[idx].title;
+  document.getElementById('cmatch').textContent = ITEMS[idx].match;
+  document.getElementById('cdesc').textContent = ITEMS[idx].desc;
+  document.getElementById('openBtn').href = `videos/${ITEMS[idx].nn}-${ITEMS[idx].slug}.html`;
+  document.getElementById('mp4Btn').href = `mp4/${ITEMS[idx].nn}-${ITEMS[idx].slug}.mp4`;
+  [...document.querySelectorAll('.dot')].forEach((d,i)=>d.classList.toggle('on', i===idx));
+  // run only the active frame; load active + immediate neighbour for snappy nav
+  frames.forEach((_,i)=>{ if(i===idx) load(i); else unload(i); });
+}
+function go(i){ idx = (i+ITEMS.length)%ITEMS.length; render(); }
+
+document.getElementById('dots').innerHTML = ITEMS.map((_,i)=>`<span class="dot" data-i="${i}"></span>`).join('');
+[...document.querySelectorAll('.dot')].forEach(d=>d.addEventListener('click',()=>go(+d.dataset.i)));
+document.getElementById('prev').addEventListener('click',()=>go(idx-1));
+document.getElementById('next').addEventListener('click',()=>go(idx+1));
+addEventListener('keydown',e=>{ if(e.key==='ArrowRight')go(idx+1); else if(e.key==='ArrowLeft')go(idx-1); else if(e.key.toLowerCase()==='f')toggleFs(); });
+
+function toggleFs(){ const el=document.documentElement; if(!document.fullscreenElement){ (el.requestFullscreen||el.webkitRequestFullscreen).call(el); } else { document.exitFullscreen(); } }
+document.getElementById('fsBtn').addEventListener('click',toggleFs);
+
+// auto-hide chrome after idle
+let t; const chrome=document.getElementById('chrome');
+function poke(){ chrome.classList.remove('hide'); clearTimeout(t); t=setTimeout(()=>chrome.classList.add('hide'),3200); }
+['mousemove','keydown','touchstart','click'].forEach(ev=>addEventListener(ev,poke));
+poke();
+
+render();
+</script>
+</body>
+</html>

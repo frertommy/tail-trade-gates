@@ -1,0 +1,14 @@
+{
+  "name": "tail-trade-launch-videos",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "20 brand launch videos for TAIL.TRADE — HTML motion graphics + MP4 capture",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "capture:one": "node capture.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}
