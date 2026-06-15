@@ -15,8 +15,8 @@
   #root{ position:fixed; inset:0; background:#000; }
 
   /* sliding deck of full-bleed frames */
-  .track{ position:absolute; inset:0; display:flex; width:500%; transition:transform .6s cubic-bezier(.16,1,.3,1); }
-  .slide{ width:20%; height:100%; position:relative; background:var(--bg); }
+  .track{ position:absolute; inset:0; display:flex; transition:transform .6s cubic-bezier(.16,1,.3,1); }
+  .slide{ flex:0 0 auto; height:100%; position:relative; background:var(--bg); }
   .slide iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:var(--bg); }
   .slide .loading{ position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); font-family:var(--mono); font-size:12px; letter-spacing:.18em; }
 
@@ -103,6 +103,8 @@ const ITEMS = [
     desc:'The bookmaker W/D/L probability bands render as a shifting cone of uncertainty behind the price; every goal re-weights it (14%→2%→77%→98% draw) and the live-weighted gates shift, resolving through the realized DRAW gate.' },
   { nn:'05', slug:'matchday-hud', title:'Matchday HUD', match:'LIVERPOOL 2–3 MAN UTD · the product',
     desc:'The integrated hero: a live scoreboard, the reacting LIV-PERP chart, and an outcome-gates panel (target price · live % · payout). Every goal ticks the score, jumps the price, and re-prices the gates — settling on the LOSS gate at full time.' },
+  { nn:'06', slug:'gate-run', title:'Gate Run · 3D', match:'EVERTON 3–3 MAN CITY · fly-through',
+    desc:'A 3D fly-through: the EVE-PERP price is a glowing track receding into space toward three floating outcome portals. Doku’s goal banks it toward LOSE, the Everton surge lines it up for the WIN gate at 3-1, then the 90+7′ equalizer veers it through the DRAW gate to settle $117.30.' },
 ];
 
 const track = document.getElementById('track');
@@ -112,6 +114,10 @@ track.innerHTML = ITEMS.map((it,i) => `
     <iframe data-src="videos/${it.nn}-${it.slug}.html" title="${it.title}" allow="autoplay"></iframe>
   </div>`).join('');
 
+const N = ITEMS.length;
+track.style.width = (N*100) + '%';
+[...track.querySelectorAll('.slide')].forEach(s => s.style.width = (100/N) + '%');
+
 const frames = [...track.querySelectorAll('iframe')];
 let idx = 0;
 
@@ -119,8 +125,8 @@ function load(i){ const f = frames[i]; if(f && !f.src){ f.src = f.dataset.src; f
 function unload(i){ const f = frames[i]; if(f && f.src){ f.removeAttribute('src'); const l=f.parentElement.querySelector('.loading'); if(l) l.style.display='grid'; } }
 
 function render(){
-  track.style.transform = `translateX(-${idx*20}%)`;
-  document.getElementById('counter').textContent = `${ITEMS[idx].nn} / 05`;
+  track.style.transform = `translateX(-${idx*(100/N)}%)`;
+  document.getElementById('counter').textContent = `${ITEMS[idx].nn} / ${String(N).padStart(2,'0')}`;
   document.getElementById('cn').textContent = `VARIANT ${ITEMS[idx].nn}`;
   document.getElementById('ctitle').textContent = ITEMS[idx].title;
   document.getElementById('cmatch').textContent = ITEMS[idx].match;
@@ -143,8 +149,8 @@ function toggleFs(){ const el=document.documentElement; if(!document.fullscreenE
 document.getElementById('fsBtn').addEventListener('click',toggleFs);
 
 // auto-hide chrome after idle
-let t; const chrome=document.getElementById('chrome');
-function poke(){ chrome.classList.remove('hide'); clearTimeout(t); t=setTimeout(()=>chrome.classList.add('hide'),3200); }
+let t; const chromeUI=document.getElementById('chrome');
+function poke(){ chromeUI.classList.remove('hide'); clearTimeout(t); t=setTimeout(()=>chromeUI.classList.add('hide'),3200); }
 ['mousemove','keydown','touchstart','click'].forEach(ev=>addEventListener(ev,poke));
 poke();
 

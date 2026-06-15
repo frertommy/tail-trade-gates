@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Gate Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video Template (1920×1080, no audio)
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --amber:#fbbf24;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --ease-trail:cubic-bezier(.25,.1,.25,1);
+    --ease-3d:cubic-bezier(.6,.05,.2,.95);
+    --ease-bounce:cubic-bezier(.34,1.56,.4,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:var(--bg);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(125% 125% at 50% 42%, transparent 48%, rgba(0,0,0,.62) 100%); }
+  .wm{ position:absolute; left:64px; bottom:54px; z-index:80; color:#fff; opacity:.92; }
+  .wm svg{ display:block; height:24px; width:auto; }
+
+  /* ===== SCENE STYLES ===== */
+  #c3d{ position:absolute; inset:0; z-index:10; display:block; }
+
+  /* corner readout / scoreboard */
+  .hud{ position:absolute; z-index:60; }
+  .panel-tr{ top:54px; right:62px; width:430px; text-align:right; }
+  .league{ font-family:var(--mono); font-size:15px; letter-spacing:.34em; color:var(--text-2); text-transform:uppercase; }
+  .score-row{ display:flex; align-items:baseline; justify-content:flex-end; gap:20px; margin-top:14px; }
+  .team{ font-family:var(--font); font-weight:600; font-size:25px; letter-spacing:.04em; }
+  .team.home{ color:var(--text); }
+  .team.away{ color:var(--text-2); }
+  .scorebox{ font-family:var(--mono); font-weight:700; font-size:48px; letter-spacing:.04em;
+    color:#fff; line-height:.9; font-variant-numeric:tabular-nums; }
+  .scorebox b{ color:var(--lime); transition:color .2s; }
+  .clock-row{ display:flex; align-items:baseline; justify-content:flex-end; gap:14px; margin-top:16px; }
+  .live{ display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px;
+    letter-spacing:.22em; color:var(--crimson-l); text-transform:uppercase; }
+  .live .dot{ width:9px; height:9px; border-radius:50%; background:var(--crimson-l);
+    box-shadow:0 0 10px var(--crimson-l); animation:pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
+  .clock{ font-family:var(--mono); font-weight:700; font-size:30px; letter-spacing:.06em; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+
+  /* big price readout, top-left */
+  .panel-tl{ top:56px; left:64px; }
+  .ticker{ font-family:var(--mono); font-size:17px; letter-spacing:.30em; color:var(--lime); text-transform:uppercase; }
+  .price-big{ font-family:var(--mono); font-weight:700; font-size:84px; letter-spacing:-.01em; line-height:.92;
+    color:#fff; font-variant-numeric:tabular-nums; margin-top:8px; text-shadow:0 0 34px rgba(178,237,104,.32); }
+  .price-big .cur{ font-size:42px; color:var(--text-2); vertical-align:top; margin-right:4px; }
+  .delta{ margin-top:12px; font-family:var(--mono); font-size:24px; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+  .delta .chip{ display:inline-block; padding:3px 12px; border-radius:var(--r-sm); }
+
+  /* title / strap, bottom-left above watermark */
+  .strap{ position:absolute; left:64px; bottom:104px; z-index:60; }
+  .strap .k{ font-family:var(--mono); font-size:14px; letter-spacing:.34em; color:var(--text-2); text-transform:uppercase; }
+  .strap .h{ font-family:var(--font); font-weight:600; font-size:30px; letter-spacing:.01em; color:var(--text); margin-top:8px; }
+  .strap .h em{ font-style:normal; color:var(--lime); }
+
+  /* legend, bottom-right */
+  .legend{ position:absolute; right:62px; bottom:60px; z-index:60; display:flex; gap:26px; }
+  .legend .it{ display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:14px;
+    letter-spacing:.14em; color:var(--text-2); text-transform:uppercase; }
+  .legend .sw{ width:13px; height:13px; border-radius:3px; }
+
+  /* outcome flip flash — lower third, clear of the gate cluster */
+  .flash{ position:absolute; left:50%; top:78%; transform:translate(-50%,-50%); z-index:70;
+    font-family:var(--font); font-weight:700; letter-spacing:.06em; text-align:center;
+    opacity:0; pointer-events:none; text-shadow:0 4px 30px rgba(0,0,0,.7); }
+  .flash .lab{ font-size:66px; line-height:1; }
+  .flash .sub{ font-family:var(--mono); font-size:21px; letter-spacing:.28em; color:var(--text);
+    margin-top:14px; text-transform:uppercase; }
+</style>
+</head>
+<body data-loop-ms="15000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <!-- ============================================================
+           SCENE — Variant 06: GATE RUN (3D fly-through), match: everton
+           Pseudo-3D canvas. Track centerline height = EVE-PERP price,
+           so goals bend the track on the same frame. Camera flies
+           forward as the match clock sweeps. Three outcome gates
+           (WIN/DRAW/LOSE) float ahead with target $ + live implied %.
+           ============================================================ -->
+      <canvas id="c3d" width="1920" height="1080"></canvas>
+
+      <!-- corner HUD: price readout -->
+      <div class="hud panel-tl">
+        <div class="ticker" id="ticker">EVE-PERP</div>
+        <div class="price-big"><span class="cur">$</span><span id="priceBig">115.21</span></div>
+        <div class="delta" id="delta"></div>
+      </div>
+
+      <!-- corner HUD: scoreboard + clock -->
+      <div class="hud panel-tr">
+        <div class="league" id="league">PREMIER LEAGUE · MAY 4</div>
+        <div class="score-row">
+          <span class="team home" id="teamH">EVERTON</span>
+          <span class="scorebox"><b id="scH">0</b><span style="color:var(--muted)">–</span><span id="scA">0</span></span>
+          <span class="team away" id="teamA">MAN CITY</span>
+        </div>
+        <div class="clock-row">
+          <span class="live"><span class="dot"></span>LIVE</span>
+          <span class="clock"><span id="clock">0</span>'</span>
+        </div>
+      </div>
+
+      <div class="strap">
+        <div class="k">TAIL.TRADE · THE FIRST PERP FOR SPORTS</div>
+        <div class="h">The price flies toward the gate of <em>what actually happens</em>.</div>
+      </div>
+
+      <div class="legend">
+        <div class="it"><span class="sw" style="background:var(--lime)"></span>WIN</div>
+        <div class="it"><span class="sw" style="background:var(--cyan)"></span>DRAW</div>
+        <div class="it"><span class="sw" style="background:var(--crimson-l)"></span>LOSE</div>
+      </div>
+
+      <div class="flash" id="flash"><div class="lab" id="flashLab"></div><div class="sub" id="flashSub"></div></div>
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+      <div class="wm" id="wm"></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 06: GATE RUN (3D fly-through)
+   ============================================================ */
+(function(){
+  document.getElementById('wm').innerHTML = TAIL.LOGO;
+
+  const M     = window.MATCHES['everton'];
+  const oddsAt  = (min)=> window.MATCHES_oddsAt(M, min);
+  // Price for the track/HUD. Uses the real Notch line, then RESOLVES into the
+  // realized (DRAW) gate at full-time: the raw price[] array tops out at ~119.2,
+  // but m.settle = 117.30 (DRAW gate 117.74). The brief requires the price to
+  // settle at $117.30 — so after the 90+7' equalizer (min 112) we ease the price
+  // down to m.settle by FT (min ~120). This is the visible "veer through DRAW".
+  const RESOLVE_A = 112, RESOLVE_B = 120;   // equalizer -> full settle
+  const priceAt = (min)=>{
+    const raw = window.MATCHES_priceAt(M, min);
+    if(min <= RESOLVE_A) return raw;
+    const k = TAIL.clamp((min - RESOLVE_A)/(RESOLVE_B - RESOLVE_A), 0, 1);
+    return TAIL.lerp(raw, M.settle, TAIL.E.inOut(k));
+  };
+
+  // hud bindings
+  document.getElementById('league').textContent = M.league.toUpperCase();
+  document.getElementById('ticker').textContent = M.ticker;
+  document.getElementById('teamH').textContent  = M.subject;
+  document.getElementById('teamA').textContent  = M.opponent;
+
+  const elPrice = document.getElementById('priceBig');
+  const elDelta = document.getElementById('delta');
+  const elClock = document.getElementById('clock');
+  const elScH   = document.getElementById('scH');
+  const elScA   = document.getElementById('scA');
+  const flash   = document.getElementById('flash');
+  const flashLab= document.getElementById('flashLab');
+  const flashSub= document.getElementById('flashSub');
+
+  const cv  = document.getElementById('c3d');
+  const ctx = cv.getContext('2d');
+  const W = 1920, H = 1080;
+
+  // ── brand palette ────────────────────────────────────────────
+  const COL = {
+    bg:'#0C0E12',
+    lime:'#B2ED68', limeL:'#C4F285', limeD:'#93D44A',
+    crimson:'#B30F43', crimsonL:'#D4135A',
+    cyan:'#00D9F5', cyanL:'#33E3F7',
+    amber:'#fbbf24',
+    text:'#E6E8EB', text2:'#8C919A', muted:'#5C6370',
+  };
+  const GATECOL = { win:COL.lime, draw:COL.cyan, loss:COL.crimsonL };
+  const hexToRgb = h => {
+    if(Array.isArray(h)) return h;
+    const m = /rgba?\(([^)]+)\)/.exec(h);
+    if(m){ const p=m[1].split(',').map(s=>parseFloat(s)); return [p[0]|0,p[1]|0,p[2]|0]; }
+    h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+  };
+  const safe = (v,d=0)=> Number.isFinite(v)? v : d;
+  const rgba = (h,a)=>{ const [r,g,b]=hexToRgb(h); return `rgba(${safe(r)},${safe(g)},${safe(b)},${safe(a)})`; };
+  // returns an rgba() string directly so it composes anywhere
+  const mix = (h1,h2,t,a=1)=>{ t=TAIL.clamp(safe(t,0),0,1); const c1=hexToRgb(h1),c2=hexToRgb(h2);
+    return `rgba(${Math.round(TAIL.lerp(c1[0],c2[0],t))},${Math.round(TAIL.lerp(c1[1],c2[1],t))},${Math.round(TAIL.lerp(c1[2],c2[2],t))},${safe(a,1)})`; };
+
+  // ── timeline: map loop progress → match minute ───────────────
+  // Sweep from kickoff window through full-time, return to start at LOOP end.
+  const MIN_START = -6;     // a beat before kickoff
+  const MIN_END   = 124;    // a beat past the settle marker (ftMin 118)
+  // Real broadcast clock for display (data .min is an internal axis; goal labels carry the true minute).
+  // We derive a shown clock from min using KO=0 -> minute 0, capped at 90+stoppage feel.
+  const shownClock = (min)=>{
+    // data axis: 0..~115 maps to 0'..90+ ; keep it readable & monotonic.
+    if (min <= 0) return 0;
+    if (min <= 90) return Math.round(min);
+    // stoppage compression: 90..115 -> 90'..90+7'
+    return min<=115 ? 90 + Math.round((min-90)*(7/25)) : 97;
+  };
+
+  // ── score timeline from goals (by data .min) ─────────────────
+  function scoreAt(min){
+    let h=0,a=0;
+    for(const g of M.goals){ if(min+0.001>=g.min){ if(g.by==='subject') h++; else a++; } }
+    return [h,a];
+  }
+
+  // ── price → world height. Anchor gates & track to one vertical scale.
+  const pY = (price)=> TAIL.map(price, M.priceMin, M.priceMax, -1, 1); // world-y in [-1,1]ish band
+
+  // gate world heights
+  const GATES = [
+    { key:'loss', label:'LOSE', price:M.gates.loss.price, col:COL.crimsonL, y:pY(M.gates.loss.price) },
+    { key:'draw', label:'DRAW', price:M.gates.draw.price, col:COL.cyan,     y:pY(M.gates.draw.price) },
+    { key:'win',  label:'WIN',  price:M.gates.win.price,  col:COL.lime,     y:pY(M.gates.win.price)  },
+  ];
+
+  // ── pseudo-3D projection (pinhole camera) ────────────────────
+  // World axes: x = lateral, y = height (price band, +up), depth measured in
+  // "minutes ahead of the camera". Camera sits at the live minute looking +depth.
+  //   z      = minutesAhead * Z_PER + Z_NEAR      (world depth; near = small z = big)
+  //   scale  = FOCAL / z                          (perspective scale)
+  //   screenX = CX + worldX * scale
+  //   screenY = HORIZON - (worldY - camHeight) * scale * Y_GAIN
+  // Everything recedes to the vanishing point (CX, HORIZON) at the center.
+  const FOCAL   = 4.2;        // focal length in world units
+  const Z_PER   = 0.34;       // world-depth per match-minute (smaller => longer runway)
+  const Z_NEAR  = 1.30;       // depth of the nearest point (camera standoff)
+  const CX      = W*0.5;      // vanishing-point x (screen)
+  const HORIZON = H*0.42;     // vanishing-point y (screen)
+  const Y_GAIN  = 1.0;        // world-height -> screen gain (pre-perspective)
+  // Camera rides ABOVE the ribbon and looks slightly down, so the near track
+  // sits low on screen and climbs toward the vanishing point (a real runway).
+  const CAM_H_K = -0.62;
+
+  // lateral heading of the track (the "veer"). Kept VERY small — the price
+  // *height* carries the story; a touch of lateral lean toward the live
+  // most-likely lane (win=right, loss=left) just adds 3D life without
+  // pulling the track off the gates it must fly through.
+  function headingAt(min){
+    const o = oddsAt(min);
+    const wsum = o.win+o.draw+o.loss || 1;
+    const lane = ( o.win*1 + o.draw*0 + o.loss*(-1) ) / wsum;
+    return lane * 0.10;       // world-x amplitude (subtle)
+  }
+
+  const PX_REF = 660;        // converts perspective scale -> a pixel magnitude for sizing
+  function project(worldX, worldY, minutesAhead){
+    const z = Math.max(Z_NEAR, minutesAhead * Z_PER + Z_NEAR);
+    const s = FOCAL / z;                              // perspective scale (≈3.2 near, →0 far)
+    const sx = CX + worldX * s * (W*0.5);             // lateral, scaled to screen
+    const sy = HORIZON - (worldY - camY + CAM_H_K) * s * (H*0.5) * Y_GAIN;
+    const px = s * PX_REF;                            // pixel-magnitude for radii/fonts/widths
+    return { x:sx, y:sy, s, px, z };
+  }
+
+  // current camera state (set each frame)
+  let camMin = MIN_START, camY = 0;
+
+  // ── event labels that streak past ────────────────────────────
+  const EVENTS = [
+    { min:38,  text:"38' DOKU · 0–1",     col:COL.crimsonL },
+    { min:85,  text:"70' EVERTON · 1–1",  col:COL.lime },
+    { min:93,  text:"78' EVERTON · 2–1",  col:COL.lime },
+    { min:99,  text:"84' EVERTON · 3–1",  col:COL.lime },
+    { min:108, text:"90+3' HAALAND · 3–2",col:COL.crimsonL },
+    { min:112, text:"90+7' DOKU · 3–3",   col:COL.crimsonL },
+  ];
+
+  // ── starfield motes for depth (deterministic) ────────────────
+  const MOTES = [];
+  for(let i=0;i<150;i++){
+    MOTES.push({ x:(TAIL.rng()*2-1)*2.2, y:(TAIL.rng()*2-1)*1.4, m: TAIL.rng()*120, sp:0.4+TAIL.rng()*0.8, r:0.4+TAIL.rng()*1.4 });
+  }
+
+  // ── flash control (outcome callouts) — driven by camMin window ──
+  // Shows while the camera's minute is within [atMin, atMin+win]; robust to
+  // the eased sweep. Returns true while active so we don't clobber it.
+  function fireFlash(camMinNow, rewind, atMin, win, lab, sub, col){
+    if(rewind>0) return false;                       // no callouts during fly-back
+    const d = camMinNow - atMin;
+    if(d>=0 && d < win){
+      const k = d/win;
+      const inK  = TAIL.E.spring(TAIL.clamp(k/0.16,0,1));
+      const outK = TAIL.clamp(1-(k-0.72)/0.28,0,1);
+      flash.style.opacity = (inK*outK).toFixed(3);
+      flash.style.transform = `translate(-50%,-50%) scale(${TAIL.lerp(0.92,1.0,inK)})`;
+      flashLab.textContent = lab; flashLab.style.color = col;
+      flashSub.textContent = sub;
+      return true;
+    }
+    return false;
+  }
+
+  // ── per-event camera shake on goal (visual punch) ────────────
+  function shakeAt(camMinNow){
+    let sh = 0;
+    for(const g of M.goals){
+      const d = camMinNow - g.min;
+      if(d>=0 && d<2.2){ sh = Math.max(sh, (1-d/2.2)); }
+    }
+    return sh;
+  }
+
+  // ── main render ──────────────────────────────────────────────
+  TAIL.loop((tl)=>{
+    const prog = tl / TAIL.LOOP_MS;                 // 0..1
+    // Forward fly-through for most of the loop, then a fast cinematic fly-back
+    // to kickoff. Because both endpoints resolve to camMin === MIN_START, the
+    // loop is perfectly seamless (state at t=0 == state at t=LOOP_MS).
+    const FWD_END = 0.86;                            // 86% forward, 14% rewind
+    let rewind = 0;                                  // 0..1 during fly-back
+    if(prog <= FWD_END){
+      const k = TAIL.E.inOut(prog / FWD_END);        // ease the long forward sweep
+      camMin = TAIL.lerp(MIN_START, MIN_END, k);
+    } else {
+      rewind = (prog - FWD_END) / (1 - FWD_END);     // 0→1
+      // fast rewind, eased so it settles gently onto kickoff
+      const k = TAIL.E.inOut(rewind);
+      camMin = TAIL.lerp(MIN_END, MIN_START, k);
+    }
+
+    // live values
+    const price = priceAt(camMin);
+    const o     = oddsAt(camMin);
+    camY = pY(price);
+
+    // ── HUD numbers ──
+    elPrice.textContent = price.toFixed(2);
+    const dv = price - M.koPrice;
+    const up = dv >= 0;
+    elDelta.innerHTML = `<span class="chip" style="background:${up?rgba(COL.lime,.16):rgba(COL.crimson,.18)};color:${up?COL.limeL:COL.crimsonL}">`
+      + `${up?'▲':'▼'} ${up?'+':'−'}${Math.abs(dv).toFixed(2)} <span style="opacity:.7">(${up?'+':'−'}${(Math.abs(dv)/M.koPrice*100).toFixed(2)}%)</span></span>`;
+    elClock.textContent = shownClock(camMin);
+    const [sh,sa] = scoreAt(camMin);
+    elScH.textContent = sh; elScA.textContent = sa;
+    // tint score lime if Everton ahead, crimson if behind
+    elScH.style.color = sh>sa ? COL.lime : (sh<sa ? COL.crimsonL : '#fff');
+
+    // ── canvas clear w/ atmospheric gradient ──
+    const bgGrad = ctx.createLinearGradient(0,0,0,H);
+    bgGrad.addColorStop(0,'#0A0C10');
+    bgGrad.addColorStop(0.40,'#0C0E12');
+    bgGrad.addColorStop(1,'#070809');
+    ctx.fillStyle = bgGrad; ctx.fillRect(0,0,W,H);
+
+    // subtle horizon glow tinted by the live most-likely gate
+    const leadKey = (o.win>=o.draw && o.win>=o.loss) ? 'win' : (o.draw>=o.loss ? 'draw' : 'loss');
+    const leadCol = GATECOL[leadKey];
+    const hg = ctx.createRadialGradient(W/2, HORIZON, 40, W/2, HORIZON, 900);
+    hg.addColorStop(0, rgba(leadCol, .14));
+    hg.addColorStop(1, rgba(leadCol, 0));
+    ctx.fillStyle = hg; ctx.fillRect(0,0,W,H);
+
+    // camera shake (goal punch) — suppressed during the rewind fly-back.
+    // Jitter is a DETERMINISTIC function of tl (not rng) so the loop captures
+    // identically every run and wraps seamlessly.
+    const shk = (rewind>0 ? 0 : shakeAt(camMin)) * (9 + Math.sin(tl*0.06)*4);
+    ctx.save();
+    if(shk>0.01){
+      const jx = Math.sin(tl*0.913)*Math.cos(tl*0.371);
+      const jy = Math.sin(tl*1.247+1.3)*Math.cos(tl*0.521);
+      ctx.translate(jx*shk, jy*shk*0.6);
+    }
+
+    // ── floor grid (perspective ground plane) for depth read ──
+    ctx.lineWidth = 1;
+    for(let gz=0; gz<=120; gz+=4){
+      const minAhead = gz;
+      const baseY = pY(priceAt(camMin+minAhead)) - 0.86;   // ground sits below the track
+      const a = project(0, baseY, minAhead);
+      const fade = TAIL.clamp(1 - minAhead/110, 0, 1);
+      ctx.strokeStyle = rgba('#1b2733', 0.20*fade);
+      ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(W, a.y); ctx.stroke();
+    }
+    // longitudinal grid lines
+    for(let lx=-4; lx<=4; lx++){
+      ctx.beginPath();
+      let started=false;
+      for(let gz=0; gz<=120; gz+=3){
+        const baseY = pY(priceAt(camMin+gz)) - 0.86;
+        const head  = headingAt(camMin+gz);
+        const p = project(lx*0.5 + head, baseY, gz);
+        if(!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.strokeStyle = rgba('#16212c', 0.16); ctx.lineWidth=1; ctx.stroke();
+    }
+
+    // ── depth motes ──
+    for(const mt of MOTES){
+      const ma = ((mt.m + camMin*mt.sp) % 120 + 120) % 120;  // recede & wrap
+      const minAhead = ma;
+      if(minAhead < 0.5) continue;
+      const p = project(mt.x, mt.y, minAhead);
+      const fade = TAIL.clamp(1-minAhead/115,0,1) * TAIL.clamp(minAhead/6,0,1);
+      ctx.fillStyle = rgba('#9fb3c8', 0.16*fade);
+      ctx.beginPath(); ctx.arc(p.x, p.y, mt.r*p.s*0.7+0.4, 0, 7); ctx.fill();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  THE GATES — three luminous outcome portals floating AHEAD on
+    //  the track. Each parked at a fixed minutes-ahead so it holds
+    //  position in front of the camera, at its outcome's price height.
+    //  Lead (most-likely) gate is brightest. A gate FLARES when the
+    //  live price height aligns with it (the price flying through).
+    // ════════════════════════════════════════════════════════════
+    // All three gates sit ON the track path (centerline + its heading), staggered
+    // in depth so the camera literally flies toward/through them. Their HEIGHT is
+    // their outcome's price — so the track climbing to WIN-height or dropping to
+    // DRAW-height = lining up with / passing through that gate.
+    const GATE_AHEAD = { draw:42, win:54, loss:66 };   // depth (minutes); spread so each reads as a distinct portal
+    const renderGates = GATES.map(g=>{
+      const minAhead = GATE_AHEAD[g.key];
+      const head = headingAt(camMin+minAhead);          // gate rides the track's lateral path
+      const liveProb = (g.key==='win'?o.win:g.key==='draw'?o.draw:o.loss);
+      // flare: how close is the live track height (camY) to this gate's height?
+      const align = TAIL.clamp(1 - Math.abs(camY - g.y)/0.22, 0, 1);
+      return { g, minAhead, cx: head, liveProb, align };
+    }).sort((a,b)=> b.minAhead - a.minAhead);  // far → near
+
+    for(const rg of renderGates){
+      const { g, minAhead, cx, liveProb, align } = rg;
+      const c = project(cx, g.y, minAhead);
+      const ringR = Math.max(8, c.px * 0.34);          // ring radius (perspective)
+      const ryK = 1.16;                                 // slight vertical ellipse
+      const fade = TAIL.clamp(1-minAhead/95, .25, 1);
+      const isLead = (g.key===leadKey);
+      const pulse = 0.5 + 0.5*Math.sin(tl*0.006 + (g.key==='win'?0:g.key==='draw'?2:4));
+      // flare boosts the realized gate as the price threads it
+      const flare = (g.key==='draw'? align : align*0.5) * (camMin>100?1:0.3);
+      const energy = TAIL.clamp((isLead?0.95:0.42) + flare*0.8, 0, 1.4);
+
+      // portal disc (soft volumetric fill)
+      const grd = ctx.createRadialGradient(c.x,c.y, ringR*0.05, c.x,c.y, ringR*1.25);
+      grd.addColorStop(0, rgba(g.col, 0.05 + (isLead?0.12:0.03) + flare*0.30));
+      grd.addColorStop(0.6, rgba(g.col, 0.04 + flare*0.12));
+      grd.addColorStop(1, rgba(g.col, 0));
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, ringR*1.1, ringR*ryK*1.1, 0, 0, 7); ctx.fill();
+
+      // outer glow ring
+      ctx.save();
+      ctx.shadowColor = rgba(g.col, Math.min(1,energy)*fade);
+      ctx.shadowBlur  = (28 + (isLead?22:0) + flare*60) * fade;
+      ctx.strokeStyle = rgba(g.col, Math.min(1,(isLead?0.95:0.55)+flare*0.6)*fade);
+      ctx.lineWidth   = Math.max(2.5, c.px*0.018*(isLead?1.5:1)*(1+flare));
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, ringR, ringR*ryK, 0, 0, 7); ctx.stroke();
+      // inner thin ring
+      ctx.shadowBlur = flare*30;
+      ctx.strokeStyle = rgba('#ffffff', Math.min(1,(isLead?0.5:0.22)+flare*0.7)*fade);
+      ctx.lineWidth = Math.max(1, c.px*0.006);
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, ringR*0.78, ringR*0.78*ryK, 0, 0, 7); ctx.stroke();
+      ctx.restore();
+
+      // energy tick marks around the portal rim
+      const ticks = 30;
+      ctx.strokeStyle = rgba(g.col, (0.30+flare*0.5)*fade);
+      ctx.lineWidth = Math.max(1, c.px*0.004);
+      for(let i=0;i<ticks;i++){
+        const ang = (i/ticks)*Math.PI*2 + tl*0.0009*(g.key==='win'?1:-1);
+        const r1 = ringR*1.04, r2 = ringR*(1.10 + 0.06*pulse);
+        ctx.beginPath();
+        ctx.moveTo(c.x+Math.cos(ang)*r1, c.y+Math.sin(ang)*r1*ryK);
+        ctx.lineTo(c.x+Math.cos(ang)*r2, c.y+Math.sin(ang)*r2*ryK);
+        ctx.stroke();
+      }
+
+      // labels — placed to the SIDE of the ring with a leader line so they never
+      // stack on the rings (DRAW right; WIN/LOSE left). Each is biased away from
+      // screen-center vertically (WIN up, LOSE down) so labels stay separated even
+      // when the gates cluster near the vanishing point. Detail ($price) fades in
+      // only once the gate is close; the outcome word + live % show from farther.
+      const lblA = TAIL.clamp((c.px-26)/90, 0, 1) * fade;       // word + %
+      const detA = TAIL.clamp((c.px-70)/80, 0, 1) * fade;       // $price detail
+      if(lblA > 0.04){
+        const side = (g.key==='draw') ? 1 : -1;                 // -1 = left, +1 = right
+        const vbias = (g.key==='win'? -1 : g.key==='loss'? 1 : 0) * (ringR*0.5 + 10);
+        const off  = ringR + 16;
+        const lx   = c.x + side*off;
+        const ly   = c.y + vbias;
+        const fL  = Math.round(TAIL.clamp(c.px*0.16, 15, 34));
+        const fP  = Math.round(TAIL.clamp(c.px*0.135, 12, 26));
+        // leader line from ring rim outward to the label anchor
+        ctx.strokeStyle = rgba(g.col, 0.5*lblA);
+        ctx.lineWidth = Math.max(1, c.px*0.004);
+        ctx.beginPath(); ctx.moveTo(c.x+side*ringR, c.y); ctx.lineTo(lx, ly); ctx.stroke();
+        ctx.textAlign = side<0 ? 'right' : 'left';
+        const tx = lx + side*8;
+        // outcome word + live % (always when visible)
+        ctx.font = `700 ${fL}px 'Space Grotesk'`;
+        ctx.fillStyle = rgba(g.col, Math.min(1,lblA+flare*0.4));
+        ctx.shadowColor = rgba(g.col, 0.55*lblA); ctx.shadowBlur = 12;
+        const wordLine = g.label + '  ' + Math.round(liveProb) + '%';
+        ctx.fillText(wordLine, tx, ly - (detA>0.05? fL*0.30 : -fL*0.34));
+        ctx.shadowBlur = 0;
+        // $price detail (only once near)
+        if(detA > 0.05){
+          ctx.font = `700 ${fP}px 'Space Mono'`;
+          ctx.fillStyle = rgba(COL.text, 0.92*detA);
+          ctx.fillText('TARGET $'+g.price.toFixed(2), tx, ly + fP*1.2);
+        }
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  THE TRACK — glowing lime ribbon, centerline height = price.
+    //  Built as a strip of quads receding into depth, fog at far end.
+    // ════════════════════════════════════════════════════════════
+    const STEP = 0.7;                  // minute step along track
+    const FAR  = 84;                   // how far ahead we draw
+    const HALF = 0.085;                // track half-width in world-x at unit
+    // Build left/right edge screen points
+    const pts = [];
+    for(let d=0; d<=FAR; d+=STEP){
+      const minHere = camMin + d;
+      const yWorld = pY(priceAt(minHere));
+      const head   = headingAt(minHere);
+      const cL = project(head - HALF, yWorld, d);
+      const cR = project(head + HALF, yWorld, d);
+      const cC = project(head,        yWorld, d);
+      pts.push({ d, minHere, cL, cR, cC, yWorld, head });
+    }
+
+    // ribbon fill (near → far) with depth fade
+    for(let i=0; i<pts.length-1; i++){
+      const a=pts[i], b=pts[i+1];
+      const fade = TAIL.clamp(1 - a.d/FAR, 0, 1);
+      // colour the segment by recent price slope (up=lime, down=crimson)
+      const slope = priceAt(a.minHere+STEP) - priceAt(a.minHere);
+      const segCol = slope >= 0 ? COL.lime : COL.crimsonL;
+      const t = TAIL.clamp(Math.abs(slope)*1.6, 0, 1);
+      const grd = ctx.createLinearGradient(a.cL.x,a.cL.y, a.cR.x,a.cR.y);
+      grd.addColorStop(0, mix(COL.limeD, segCol, t, 0.0));
+      grd.addColorStop(0.5, mix(COL.limeD, segCol, t, 0.30*fade));
+      grd.addColorStop(1, mix(COL.limeD, segCol, t, 0.0));
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.moveTo(a.cL.x,a.cL.y); ctx.lineTo(b.cL.x,b.cL.y);
+      ctx.lineTo(b.cR.x,b.cR.y); ctx.lineTo(a.cR.x,a.cR.y); ctx.closePath();
+      ctx.fill();
+    }
+
+    // cross-ties (rungs) for speed read
+    for(let i=0;i<pts.length;i++){
+      const p=pts[i];
+      // tie every ~3 minutes, animated to flow toward camera
+      const phase = (p.minHere*1.0) ;
+      if(Math.floor(phase) % 3 !== 0) continue;
+      const fade = TAIL.clamp(1 - p.d/FAR, 0, 1);
+      const slope = priceAt(p.minHere+STEP)-priceAt(p.minHere);
+      const segCol = slope>=0?COL.lime:COL.crimsonL;
+      ctx.strokeStyle = rgba(segCol, 0.28*fade);
+      ctx.lineWidth = Math.max(1, p.cC.px*0.010);
+      ctx.beginPath(); ctx.moveTo(p.cL.x,p.cL.y); ctx.lineTo(p.cR.x,p.cR.y); ctx.stroke();
+    }
+
+    // side rails (bright glowing edges) — per-segment so width tapers with depth
+    function drawRail(getPt){
+      ctx.save();
+      ctx.shadowColor = rgba(COL.lime, 0.6);
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      for(let i=0;i<pts.length-1;i++){
+        const a=getPt(pts[i]), b=getPt(pts[i+1]);
+        const fade = TAIL.clamp(1 - pts[i].d/FAR, 0.06, 1);
+        ctx.shadowBlur = 14*fade;
+        ctx.strokeStyle = rgba(COL.limeL, 0.55*fade);
+        ctx.lineWidth = Math.max(1, pts[i].cC.px*0.007);
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    drawRail(p=>p.cL);
+    drawRail(p=>p.cR);
+
+    // bright centerline (the price line itself) — glowing, thicker near camera
+    ctx.save();
+    ctx.shadowColor = rgba(COL.lime, 0.9);
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    for(let i=0;i<pts.length-1;i++){
+      const a=pts[i], b=pts[i+1];
+      const fade = TAIL.clamp(1 - a.d/FAR, 0.08, 1);
+      const slope = priceAt(a.minHere+STEP)-priceAt(a.minHere);
+      const segCol = slope>=0?COL.lime:COL.crimsonL;
+      ctx.shadowBlur = 26*fade;
+      ctx.strokeStyle = rgba(segCol, 0.95*fade);
+      ctx.lineWidth = Math.max(1.5, a.cC.px*0.022);
+      ctx.beginPath(); ctx.moveTo(a.cC.x,a.cC.y); ctx.lineTo(b.cC.x,b.cC.y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // ── the LIVE NOSE: a bright marker at the camera's price (d=0) ──
+    {
+      const nose = pts[0];
+      // dynamic glow puck riding the very front of the track
+      const ng = ctx.createRadialGradient(nose.cC.x, nose.cC.y, 0, nose.cC.x, nose.cC.y, 60);
+      ng.addColorStop(0, rgba('#ffffff', 0.95));
+      ng.addColorStop(0.25, rgba(COL.limeL, 0.85));
+      ng.addColorStop(1, rgba(COL.lime, 0));
+      ctx.fillStyle = ng;
+      ctx.beginPath(); ctx.arc(nose.cC.x, nose.cC.y, 60, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(nose.cC.x, nose.cC.y, 7, 0, 7); ctx.fill();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  FLOATING EVENT LABELS — streak past above the track. Labels are
+    //  lifted clear of the track, nudged apart vertically when two events
+    //  are close in depth, and drawn far→near so the nearest sits on top.
+    // ════════════════════════════════════════════════════════════
+    const evVis = EVENTS
+      .map(ev=>({ ev, minAhead: ev.min - camMin }))
+      .filter(e=> e.minAhead > -1.5 && e.minAhead < 58)
+      .sort((a,b)=> b.minAhead - a.minAhead);          // far → near
+    const placed = [];                                  // {y, lift} for collision nudging
+    for(const {ev, minAhead} of evVis){
+      const head = headingAt(ev.min);
+      const trackY = pY(priceAt(ev.min));
+      const tp = project(head, trackY, Math.max(0,minAhead));     // anchor on the track
+      // base label position: lifted above the anchor in screen space
+      let p = project(head, trackY + 0.30, Math.max(0, minAhead));
+      const fade = TAIL.clamp(1 - minAhead/50, 0, 1) * TAIL.clamp((minAhead+1.5)/2.5, 0, 1);
+      if(fade<=0.02) continue;
+      const sz = Math.round(TAIL.clamp(p.px*0.16, 13, 30));
+      // nudge up if it would collide with an already-placed (farther) label
+      let ly = p.y;
+      for(const q of placed){ if(Math.abs(ly - q.y) < sz*1.8 && Math.abs(p.x - q.x) < 320){ ly = q.y - sz*1.9; } }
+      placed.push({ y:ly, x:p.x });
+      ctx.textAlign='left';
+      ctx.font = `700 ${sz}px 'Space Mono'`;
+      // leader from the track anchor up to the label
+      ctx.strokeStyle = rgba(ev.col, 0.5*fade); ctx.lineWidth=Math.max(1,p.px*0.006);
+      ctx.beginPath(); ctx.moveTo(tp.x,tp.y); ctx.lineTo(p.x, ly+sz*0.5); ctx.stroke();
+      ctx.fillStyle = rgba(ev.col, 0.6*fade);
+      ctx.beginPath(); ctx.arc(tp.x,tp.y, Math.max(2.5,p.px*0.014),0,7); ctx.fill();
+      // label chip (opaque background so it stays legible over the track)
+      const tw = ctx.measureText(ev.text).width;
+      ctx.fillStyle = rgba('#0A0C10', 0.86*fade);
+      ctx.fillRect(p.x-8, ly-sz*0.95, tw+16, sz*1.6);
+      ctx.fillStyle = rgba(ev.col, 0.4*fade);
+      ctx.fillRect(p.x-8, ly-sz*0.95, 3, sz*1.6);          // colour tab
+      ctx.fillStyle = rgba(ev.col, 0.99*fade);
+      ctx.shadowColor = rgba(ev.col, 0.55*fade); ctx.shadowBlur=8;
+      ctx.fillText(ev.text, p.x+4, ly+sz*0.34);
+      ctx.shadowBlur=0;
+    }
+
+    ctx.restore(); // shake
+
+    // ── outcome flip flashes (camMin-window cues) ──
+    let used=false;
+    // 84' EVERTON 3-1 → lined up for WIN  (window: min 99→108, before the equalizers)
+    used = fireFlash(camMin, rewind, 99, 9, 'LINED UP · WIN', '84′ EVERTON 3–1  ·  WIN '+Math.round(oddsAt(100).win)+'%', COL.lime) || used;
+    // 90+7' DOKU 3-3 → veers through DRAW  (window: min 113→124)
+    used = fireFlash(camMin, rewind, 113, 11, 'THROUGH · DRAW', '90+7′ DOKU 3–3  ·  SETTLES $117.30', COL.cyan) || used;
+    if(!used){ flash.style.opacity = 0; }
+
+  });
+
+  TAIL.ready();
+})();
+</script>
+</body>
+</html>
