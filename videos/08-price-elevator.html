@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Price Elevator · LIV-PERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video · 08 PRICE ELEVATOR (liverpool)
+     A tall full-height VERTICAL price axis. Three horizontal GATE
+     "floors" (WIN $194 lime top · DRAW $185.94 amber mid · LOSE
+     $178.05 crimson low). The live LIV-PERP price is a glowing
+     horizontal "elevator car" that rides up/down the shaft as the
+     match clock runs, dragging a vertical trailing ribbon (lime
+     above KO, crimson below). Goals jolt it the same frame. It
+     settles onto the LOSE floor ($179.09) at FT, which lights up.
+     Loop: car returns to the KO line. Mechanical · vertical.
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --amber:#fbbf24; --amber-l:#fcd34d; --amber-d:#d99a09;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:
+      radial-gradient(120% 130% at 30% -10%, #11151c 0%, #0C0E12 52%, #07090c 100%);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.045; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(120% 120% at 48% 50%, transparent 54%, rgba(0,0,0,.62) 100%); }
+
+  /* ===== SCENE ===== */
+  .scene{ position:absolute; inset:0; z-index:10; }
+
+  /* the elevator-shaft SVG fills the frame (vertical axis lives inside) */
+  #shaft{ position:absolute; inset:0; z-index:20; }
+
+  /* ---- top-left ticker badge ---- */
+  .tk{ position:absolute; left:96px; top:64px; display:flex; align-items:center; gap:16px; z-index:42; }
+  .tk-dot{ width:12px; height:12px; border-radius:50%; background:var(--lime); box-shadow:0 0 16px var(--lime); }
+  .tk-name{ font-family:var(--mono); font-weight:700; font-size:32px; letter-spacing:.14em; color:var(--text); line-height:1; }
+  .tk-sub{ font-family:var(--font); font-weight:500; font-size:14px; letter-spacing:.34em; color:var(--text-2); text-transform:uppercase; margin-top:7px; }
+
+  /* ---- big live price readout (top-left, under ticker) ---- */
+  .px{ position:absolute; left:96px; top:150px; z-index:42; display:flex; align-items:baseline; gap:18px; }
+  .px .val{ font-family:var(--mono); font-weight:700; font-size:88px; letter-spacing:.005em; color:var(--text); font-variant-numeric:tabular-nums; line-height:1; }
+  .px .dl{ font-family:var(--mono); font-weight:700; font-size:30px; font-variant-numeric:tabular-nums; padding:7px 14px; border-radius:var(--r-md); line-height:1; }
+  .px .cap{ position:absolute; left:2px; top:-26px; font-family:var(--font); font-weight:500; font-size:13px; letter-spacing:.34em; color:var(--text-2); text-transform:uppercase; }
+
+  /* ---- the right side RAIL: clock + scoreboard, slim vertical strip ---- */
+  .rail{ position:absolute; right:74px; top:96px; width:300px; z-index:44;
+    display:flex; flex-direction:column; gap:22px; }
+  .rail-card{ border:1px solid var(--border); border-radius:var(--r-lg);
+    background:rgba(12,15,20,.66); backdrop-filter:blur(8px); padding:22px 24px; }
+  .rail-lab{ font-family:var(--font); font-weight:500; font-size:13px; letter-spacing:.34em; color:var(--text-2); text-transform:uppercase; }
+  .clock-t{ font-family:var(--mono); font-weight:700; font-size:62px; letter-spacing:.04em; color:var(--text); font-variant-numeric:tabular-nums; line-height:1; margin-top:10px; display:flex; align-items:baseline; gap:6px; }
+  .clock-t.ft{ color:var(--crimson-l); }
+  /* match progress meter */
+  .meter{ height:8px; border-radius:99px; background:rgba(255,255,255,.07); margin-top:18px; overflow:hidden; }
+  .meter-fill{ height:100%; width:0%; border-radius:99px; background:linear-gradient(90deg,var(--cyan-d),var(--cyan)); box-shadow:0 0 14px rgba(0,217,245,.5); }
+
+  /* scoreboard inside the rail */
+  .sb{ display:flex; flex-direction:column; gap:16px; }
+  .sb-row{ display:flex; align-items:center; justify-content:space-between; }
+  .sb-team{ display:flex; align-items:center; gap:13px; font-family:var(--font); font-weight:600; font-size:20px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-2); }
+  .sb-team.subj{ color:var(--text); }
+  .sb-chip{ width:10px; height:10px; border-radius:2px; }
+  .sb-chip.liv{ background:var(--lime); box-shadow:0 0 12px rgba(178,237,104,.5); }
+  .sb-chip.mu{ background:var(--crimson-l); box-shadow:0 0 12px rgba(212,19,90,.5); }
+  .sb-num{ font-family:var(--mono); font-weight:700; font-size:46px; letter-spacing:.02em; color:var(--text); font-variant-numeric:tabular-nums; line-height:1; min-width:46px; text-align:right; }
+  .sb-sep{ height:1px; background:var(--border); margin:2px 0; }
+
+  /* ---- goal flash card (pops at the moment of the goal) ---- */
+  .goal{ position:absolute; z-index:48; pointer-events:none; transform:translate(0,-50%); }
+  .goal-card{ position:relative; display:flex; flex-direction:column; gap:8px; padding:16px 24px 17px; border-radius:var(--r-lg);
+    background:rgba(14,18,24,.85); backdrop-filter:blur(8px); border:1px solid var(--border);
+    box-shadow:0 18px 50px rgba(0,0,0,.55); min-width:236px; }
+  .goal-card .gtag{ font-family:var(--font); font-weight:700; font-size:14px; letter-spacing:.3em; text-transform:uppercase; display:flex; align-items:center; gap:10px; }
+  .goal-card .gdot{ width:9px; height:9px; border-radius:50%; }
+  .goal-card .gname{ font-family:var(--mono); font-weight:700; font-size:27px; letter-spacing:.02em; color:var(--text); }
+  .goal-card .gsc{ font-family:var(--mono); font-weight:700; font-size:16px; letter-spacing:.08em; }
+  .goal.up .goal-card{ border-color:rgba(178,237,104,.55); box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 40px rgba(178,237,104,.2); }
+  .goal.up .gtag{ color:var(--lime); } .goal.up .gdot{ background:var(--lime); } .goal.up .gsc{ color:var(--lime); }
+  .goal.down .goal-card{ border-color:rgba(212,19,90,.55); box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 40px rgba(179,15,67,.24); }
+  .goal.down .gtag{ color:var(--crimson-l); } .goal.down .gdot{ background:var(--crimson-l); } .goal.down .gsc{ color:var(--crimson-l); }
+  /* connector arrow pointing toward the shaft (left) */
+  .goal-card::before{ content:''; position:absolute; left:-9px; top:50%; width:9px; height:1px; transform:translateY(-50%); background:currentColor; opacity:.5; }
+
+  /* ---- watermark ---- */
+  .wm{ position:absolute; left:96px; bottom:54px; z-index:80; color:#fff; opacity:.92; }
+  .wm svg{ display:block; height:25px; width:auto; }
+  .wm-tag{ position:absolute; right:74px; bottom:58px; z-index:80; font-family:var(--font); font-weight:500; font-size:14px; letter-spacing:.32em; color:var(--text-2); text-transform:uppercase; }
+
+  /* ---- FT settle stamp ---- */
+  .ftstamp{ position:absolute; left:50%; top:88px; transform:translate(-50%,0); z-index:60; text-align:center; opacity:0; }
+  .ftstamp .fl{ font-family:var(--font); font-weight:700; font-size:19px; letter-spacing:.46em; color:var(--crimson-l); text-transform:uppercase; }
+</style>
+</head>
+<body data-loop-ms="16000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <div class="scene">
+
+        <!-- elevator shaft + axis (SVG, drawn from data) -->
+        <svg id="shaft" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- ribbon gradients (vertical) -->
+            <linearGradient id="ribUp" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#B2ED68" stop-opacity="0.05"/>
+              <stop offset="100%" stop-color="#B2ED68" stop-opacity="0.42"/>
+            </linearGradient>
+            <linearGradient id="ribDn" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#B30F43" stop-opacity="0.05"/>
+              <stop offset="100%" stop-color="#D4135A" stop-opacity="0.46"/>
+            </linearGradient>
+            <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur stdDeviation="7" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glowSoft" x="-120%" y="-120%" width="340%" height="340%">
+              <feGaussianBlur stdDeviation="14"/>
+            </filter>
+          </defs>
+
+          <!-- shaft side walls -->
+          <line id="wallL" x1="0" y1="0" x2="0" y2="0" stroke="#1d2530" stroke-width="2"/>
+          <line id="wallR" x1="0" y1="0" x2="0" y2="0" stroke="#1d2530" stroke-width="2"/>
+
+          <!-- tick rungs of the shaft (every $ step) -->
+          <g id="rungs"></g>
+
+          <!-- gate FLOORS (filled bands spanning the shaft) -->
+          <g id="floors"></g>
+
+          <!-- KO reference line -->
+          <line id="koLine" x1="0" y1="0" x2="0" y2="0" stroke="#5C6370" stroke-width="1.6" stroke-dasharray="4 8"/>
+
+          <!-- trailing ribbon from KO line to the car -->
+          <path id="ribbon" d="" />
+          <!-- ribbon leading edge (vertical bright line at car x-center, KO→car) -->
+          <line id="ribEdge" x1="0" y1="0" x2="0" y2="0" stroke-width="2.5" opacity="0.85"/>
+
+          <!-- the ELEVATOR CAR — a physical chassis riding the shaft.
+               soft halo · filled body · bright top+bottom rails · centerline · nub caps -->
+          <g id="car">
+            <line id="carGlow" x1="0" y1="0" x2="0" y2="0" stroke="#B2ED68" stroke-width="46" opacity="0.18" filter="url(#glowSoft)"/>
+            <rect id="carBody" x="0" y="0" width="0" height="34" rx="9" fill="#B2ED68" opacity="0.14"/>
+            <line id="carEdgeT" x1="0" y1="0" x2="0" y2="0" stroke="#B2ED68" stroke-width="2.4" opacity="0.85"/>
+            <line id="carEdgeB" x1="0" y1="0" x2="0" y2="0" stroke="#B2ED68" stroke-width="2.4" opacity="0.85"/>
+            <line id="carBar"  x1="0" y1="0" x2="0" y2="0" stroke="#B2ED68" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+            <circle id="carNubL" r="9" fill="#B2ED68" filter="url(#glow)"/>
+            <circle id="carNubR" r="9" fill="#B2ED68" filter="url(#glow)"/>
+            <circle id="carNubLi" r="3.5" fill="#0C0E12"/>
+            <circle id="carNubRi" r="3.5" fill="#0C0E12"/>
+          </g>
+        </svg>
+
+        <!-- ticker badge -->
+        <div class="tk">
+          <div class="tk-dot"></div>
+          <div>
+            <div class="tk-name">LIV-PERP</div>
+            <div class="tk-sub">Premier League · May 3</div>
+          </div>
+        </div>
+
+        <!-- big live price -->
+        <div class="px">
+          <span class="cap">Live mark</span>
+          <div class="val" id="pxVal">$185.12</div>
+          <div class="dl" id="pxDl">0.00</div>
+        </div>
+
+        <!-- right rail: clock + scoreboard -->
+        <div class="rail">
+          <div class="rail-card">
+            <div class="rail-lab">Match clock</div>
+            <div class="clock-t" id="clockT"><span id="clockMin">0</span><span style="font-size:34px">'</span></div>
+            <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+          </div>
+          <div class="rail-card">
+            <div class="rail-lab" style="margin-bottom:18px">Scoreboard</div>
+            <div class="sb">
+              <div class="sb-row">
+                <div class="sb-team subj"><span class="sb-chip liv"></span>LIVERPOOL</div>
+                <div class="sb-num" id="scH">0</div>
+              </div>
+              <div class="sb-sep"></div>
+              <div class="sb-row">
+                <div class="sb-team"><span class="sb-chip mu"></span>MAN UTD</div>
+                <div class="sb-num" id="scA">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- goal flash host -->
+        <div id="goalHost"></div>
+
+        <!-- FT stamp -->
+        <div class="ftstamp" id="ftStamp"><div class="fl">FULL TIME · SETTLED ON LOSE</div></div>
+
+        <!-- watermark -->
+        <div class="wm" id="wm"></div>
+        <div class="wm-tag">THE FIRST PERP FOR SPORTS</div>
+      </div>
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 08 PRICE ELEVATOR (liverpool)
+   Everything below is a PURE FUNCTION of loop-local time tl.
+   ============================================================ */
+(function(){
+  const M = window.MATCHES.liverpool;
+  const { clamp, lerp, map, E } = TAIL;
+  const priceAt = (min)=>window.MATCHES_priceAt(M, min);
+  const oddsAt  = (min)=>window.MATCHES_oddsAt(M, min);
+  const NS = 'http://www.w3.org/2000/svg';
+
+  /* ── shaft geometry (SVG user units = 1920×1080) ──
+     Vertical price axis. The shaft is a tall channel; price → Y,
+     high price near the top. The car (a horizontal bar) spans the
+     shaft width and rides up/down. */
+  const SHAFT = { xL: 470, xR: 1120, yTop: 132, yBot: 952 };  // shaft walls + vertical extent
+  const Y_MIN = M.priceMin;        // 176  (bottom of axis)
+  const Y_MAX = M.priceMax;        // 198  (top of axis)
+  const CX = (SHAFT.xL + SHAFT.xR) / 2;
+
+  const yToPx = (p)=> map(clamp(p, Y_MIN, Y_MAX), Y_MIN, Y_MAX, SHAFT.yBot, SHAFT.yTop);
+
+  // ── timeline (ms within LOOP) ──
+  const LOOP = TAIL.LOOP_MS;       // 16000
+  const X_MIN = M.xMin;            // -60 (pre-KO history, used only for clock realism start)
+  const X_END = 122;               // a touch past ftMin(120) so settle reads cleanly
+  const T = {
+    ko:        1300,               // hold the car at KO before the run
+    runEnd:    12400,              // clock reaches X_END here
+    settleEnd: 14500,              // FT settle hold ends
+    resetEnd:  LOOP                // retract car back to KO (seamless)
+  };
+  // effective match-minute (chart x) as a pure function of tl
+  function clockMin(tl){
+    if(tl < T.ko) return 0;
+    if(tl < T.runEnd) return map(tl, T.ko, T.runEnd, 0, X_END);
+    return X_END;
+  }
+
+  // ── gate floors (REAL numbers) ──
+  const GATE_COL = { win:'#B2ED68', draw:'#fbbf24', loss:'#D4135A' };
+  const GATE_DEF = [
+    { k:'win',  name:'WIN',  sub:'LIVERPOOL WIN', price:M.gates.win.price,  base:M.gates.win.prob },
+    { k:'draw', name:'DRAW', sub:'STALEMATE',     price:M.gates.draw.price, base:M.gates.draw.prob },
+    { k:'loss', name:'LOSE', sub:'LIVERPOOL LOSE',price:M.gates.loss.price, base:M.gates.loss.prob },
+  ];
+
+  // ── build shaft walls ──
+  const wallL = document.getElementById('wallL'), wallR = document.getElementById('wallR');
+  [[wallL,SHAFT.xL],[wallR,SHAFT.xR]].forEach(([el,x])=>{
+    el.setAttribute('x1',x); el.setAttribute('x2',x);
+    el.setAttribute('y1',SHAFT.yTop-8); el.setAttribute('y2',SHAFT.yBot+8);
+  });
+
+  // ── build $ rungs (every $2 across the axis) as faint horizontal ticks ──
+  const rungs = document.getElementById('rungs');
+  for(let p=Math.ceil(Y_MIN/2)*2; p<=Y_MAX; p+=2){
+    const y = yToPx(p);
+    const ln = document.createElementNS(NS,'line');
+    ln.setAttribute('x1',SHAFT.xL); ln.setAttribute('x2',SHAFT.xR);
+    ln.setAttribute('y1',y); ln.setAttribute('y2',y);
+    ln.setAttribute('stroke','#ffffff'); ln.setAttribute('stroke-width','1');
+    ln.setAttribute('opacity','0.045');
+    rungs.appendChild(ln);
+    // small $ label on the left wall, just inside
+    const tx = document.createElementNS(NS,'text');
+    tx.setAttribute('x', SHAFT.xL-14); tx.setAttribute('y', y+5);
+    tx.setAttribute('text-anchor','end');
+    tx.setAttribute('fill','#5C6370'); tx.setAttribute('opacity','0.5');
+    tx.setAttribute('font-family',"'Space Mono',monospace"); tx.setAttribute('font-size','15'); tx.setAttribute('font-weight','400');
+    tx.textContent = '$'+p;
+    rungs.appendChild(tx);
+  }
+
+  // ── build gate FLOORS: a band + a bright floor line + a floating label/% to the right ──
+  const floors = document.getElementById('floors');
+  const GATES = {};
+  GATE_DEF.forEach(g=>{
+    const y = yToPx(g.price);
+    const col = GATE_COL[g.k];
+
+    // the floor line itself (bright, dashed)
+    const line = document.createElementNS(NS,'line');
+    line.setAttribute('x1',SHAFT.xL-26); line.setAttribute('x2',SHAFT.xR+26);
+    line.setAttribute('y1',y); line.setAttribute('y2',y);
+    line.setAttribute('stroke',col); line.setAttribute('stroke-width','2.2');
+    line.setAttribute('stroke-dasharray','10 7'); line.setAttribute('opacity','0.55');
+    floors.appendChild(line);
+
+    // soft floor glow line behind (lights up on resolve)
+    const glow = document.createElementNS(NS,'line');
+    glow.setAttribute('x1',SHAFT.xL-26); glow.setAttribute('x2',SHAFT.xR+26);
+    glow.setAttribute('y1',y); glow.setAttribute('y2',y);
+    glow.setAttribute('stroke',col); glow.setAttribute('stroke-width','10');
+    glow.setAttribute('opacity','0'); glow.setAttribute('filter','url(#glowSoft)');
+    floors.appendChild(glow);
+
+    // label/price/% group floating just left of the shaft
+    const fx = SHAFT.xL - 40;
+    const tName = document.createElementNS(NS,'text');
+    tName.setAttribute('x', fx); tName.setAttribute('y', y-12); tName.setAttribute('text-anchor','end');
+    tName.setAttribute('fill',col);
+    tName.setAttribute('font-family',"'Space Grotesk',sans-serif"); tName.setAttribute('font-size','21'); tName.setAttribute('font-weight','700');
+    tName.setAttribute('letter-spacing','3'); tName.textContent = g.name+' GATE';
+    floors.appendChild(tName);
+
+    const tPrice = document.createElementNS(NS,'text');
+    tPrice.setAttribute('x', fx); tPrice.setAttribute('y', y+22); tPrice.setAttribute('text-anchor','end');
+    tPrice.setAttribute('fill','#E6E8EB');
+    tPrice.setAttribute('font-family',"'Space Mono',monospace"); tPrice.setAttribute('font-size','30'); tPrice.setAttribute('font-weight','700');
+    tPrice.textContent = '$'+g.price.toFixed(2);
+    floors.appendChild(tPrice);
+
+    // live % pill, floating just RIGHT of the shaft on the floor
+    const px = SHAFT.xR + 44;
+    const tProb = document.createElementNS(NS,'text');
+    tProb.setAttribute('x', px); tProb.setAttribute('y', y+1); tProb.setAttribute('text-anchor','start');
+    tProb.setAttribute('dominant-baseline','middle');
+    tProb.setAttribute('fill',col);
+    tProb.setAttribute('font-family',"'Space Mono',monospace"); tProb.setAttribute('font-size','40'); tProb.setAttribute('font-weight','700');
+    tProb.textContent = Math.round(g.base);
+    floors.appendChild(tProb);
+    const tPct = document.createElementNS(NS,'text');
+    tPct.setAttribute('x', px); tPct.setAttribute('y', y+22); tPct.setAttribute('text-anchor','start');
+    tPct.setAttribute('fill','#8C919A');
+    tPct.setAttribute('font-family',"'Space Grotesk',sans-serif"); tPct.setAttribute('font-size','12'); tPct.setAttribute('font-weight','500');
+    tPct.setAttribute('letter-spacing','2.5'); tPct.textContent = 'LIVE %';
+    floors.appendChild(tPct);
+
+    GATES[g.k] = { y, col, line, glow, tName, tPrice, tProb, base:g.base };
+  });
+
+  // ── KO reference line ──
+  const koY = yToPx(M.koPrice);
+  const koLine = document.getElementById('koLine');
+  koLine.setAttribute('x1',SHAFT.xL); koLine.setAttribute('x2',SHAFT.xR);
+  koLine.setAttribute('y1',koY); koLine.setAttribute('y2',koY);
+  // KO tag
+  const koTag = document.createElementNS(NS,'text');
+  koTag.setAttribute('x', SHAFT.xR+44); koTag.setAttribute('y', koY+5);
+  koTag.setAttribute('fill','#8C919A');
+  koTag.setAttribute('font-family',"'Space Grotesk',sans-serif"); koTag.setAttribute('font-size','13'); koTag.setAttribute('font-weight','500');
+  koTag.setAttribute('letter-spacing','2.5'); koTag.textContent = 'KICK-OFF $'+M.koPrice.toFixed(2);
+  document.getElementById('floors').appendChild(koTag);
+
+  // ── car refs ──
+  const carGroup= document.getElementById('car');
+  const carGlow = document.getElementById('carGlow');
+  const carBody = document.getElementById('carBody');
+  const carEdgeT= document.getElementById('carEdgeT');
+  const carEdgeB= document.getElementById('carEdgeB');
+  const carBar  = document.getElementById('carBar');
+  const carNubL = document.getElementById('carNubL');
+  const carNubR = document.getElementById('carNubR');
+  const carNubLi= document.getElementById('carNubLi');
+  const carNubRi= document.getElementById('carNubRi');
+  const ribbon  = document.getElementById('ribbon');
+  const ribEdge = document.getElementById('ribEdge');
+
+  // ── goals → flash cards ──
+  const goalHost = document.getElementById('goalHost');
+  const GOALS = M.goals.map(g=>{
+    const card = document.createElement('div');
+    card.className = 'goal ' + (g.by==='subject' ? 'up' : 'down');
+    const tag = g.by==='subject' ? 'LIVERPOOL · LONG ▲' : 'MAN UTD · SHORT ▼';
+    card.innerHTML =
+      '<div class="goal-card">'+
+        '<div class="gtag"><span class="gdot"></span>'+tag+'</div>'+
+        '<div class="gname">'+g.label+'</div>'+
+        '<div class="gsc">LIVERPOOL '+g.score.replace('-',' : ')+' MAN UTD</div>'+
+      '</div>';
+    card.style.opacity = '0';
+    goalHost.appendChild(card);
+    // tlGoal = loop-time when the running clock reaches this goal's chart-min
+    const tlGoal = T.ko + (g.min / X_END) * (T.runEnd - T.ko);
+    return { ...g, card, tlGoal };
+  });
+
+  // cumulative score at a chart-min
+  function scoreAt(min){
+    let last='0-0';
+    for(const g of M.goals){ if(min>=g.min) last=g.score; }
+    const [h,a]=last.split('-'); return { h:+h, a:+a };
+  }
+
+  // ── goal JOLT: a brief mechanical kick on the car the instant a goal fires.
+  //    Pure function of tl: a decaying sine in a short window after each tlGoal.
+  //    Direction matches the move (down for opponent/crimson, up for subject/lime),
+  //    so the elevator visibly lurches the SAME frame the goal label pops. px units.
+  function joltPx(tl){
+    let j = 0;
+    for(const g of GOALS){
+      const d = tl - g.tlGoal;
+      if(d>=0 && d<420){
+        const k = d/420;                                  // 0→1
+        const dir = (g.by==='opponent') ? 1 : -1;         // +y = downward (price down)
+        const amp = 16 * Math.pow(1-k, 2);                // decay
+        j += dir * amp * Math.sin(k*Math.PI*3);
+      }
+    }
+    return j;
+  }
+
+  // ── clock: chart-min → real display minute (incl. stoppage), via anchors ──
+  const CLK = [ [X_MIN,-2],[0,0],[6,6],[14,14],[45,45],[62,47],[71,56],[90,77],[92,77],[110,90],[X_END,94] ];
+  function displayMinute(cm){
+    if(cm<=CLK[0][0]) return CLK[0][1];
+    for(let i=1;i<CLK.length;i++){ if(cm<=CLK[i][0]){ const a=CLK[i-1],b=CLK[i]; return lerp(a[1],b[1],(cm-a[0])/(b[0]-a[0])); } }
+    return CLK[CLK.length-1][1];
+  }
+
+  // ── element refs ──
+  const elPxVal=document.getElementById('pxVal'), elPxDl=document.getElementById('pxDl');
+  const elClockT=document.getElementById('clockT'), elClockMin=document.getElementById('clockMin');
+  const elMeter=document.getElementById('meterFill');
+  const elScH=document.getElementById('scH'), elScA=document.getElementById('scA');
+  const ftStamp=document.getElementById('ftStamp');
+  document.getElementById('wm').innerHTML = TAIL.LOGO;
+
+  const C_UP='#B2ED68', C_DN='#D4135A', C_NEU='#8C919A';
+  const carW = (SHAFT.xR - SHAFT.xL) + 36;  // car bar slightly overhangs the shaft
+
+  TAIL.loop((tl)=>{
+    // ── reset / seam: in the last window retract the car back to KO and clear ribbon ──
+    const inReset = tl >= T.settleEnd;
+    const resetK  = inReset ? E.inOut(clamp((tl - T.settleEnd)/(T.resetEnd - T.settleEnd),0,1)) : 0;
+
+    const cm = clockMin(tl);
+    const settled = (tl>=T.runEnd && !inReset) || (inReset && resetK<0.55);
+
+    // ── live price (pure fn of cm), with reset collapse back to KO ──
+    const rawP = priceAt(cm);
+    const curP = inReset ? lerp(rawP, M.koPrice, resetK) : rawP;
+    // jolt the car the same frame a goal fires (suppressed during the reset/seam),
+    // clamped so it never leaves the shaft. Pure fn of tl.
+    const jy = inReset ? 0 : joltPx(tl);
+    const carY = clamp(yToPx(curP) + jy, SHAFT.yTop, SHAFT.yBot);
+
+    // side (above/below KO) → color
+    const above = curP >= M.koPrice + 0.02;
+    const below = curP <= M.koPrice - 0.02;
+    const col = above ? C_UP : (below ? C_DN : C_NEU);
+    const lineCol = (col===C_NEU) ? C_UP : col;
+
+    // ── CAR: a physical chassis at carY spanning the shaft ──
+    const x1 = CX - carW/2, x2 = CX + carW/2;
+    const bodyH = 34, bt = carY - bodyH/2, bb = carY + bodyH/2;
+    carBar.setAttribute('x1',x1); carBar.setAttribute('x2',x2); carBar.setAttribute('y1',carY); carBar.setAttribute('y2',carY);
+    carGlow.setAttribute('x1',x1); carGlow.setAttribute('x2',x2); carGlow.setAttribute('y1',carY); carGlow.setAttribute('y2',carY);
+    carEdgeT.setAttribute('x1',x1); carEdgeT.setAttribute('x2',x2); carEdgeT.setAttribute('y1',bt); carEdgeT.setAttribute('y2',bt);
+    carEdgeB.setAttribute('x1',x1); carEdgeB.setAttribute('x2',x2); carEdgeB.setAttribute('y1',bb); carEdgeB.setAttribute('y2',bb);
+    carBody.setAttribute('x',x1); carBody.setAttribute('width',(x2-x1)); carBody.setAttribute('y',bt);
+    carBar.setAttribute('stroke',lineCol); carGlow.setAttribute('stroke',lineCol);
+    carEdgeT.setAttribute('stroke',lineCol); carEdgeB.setAttribute('stroke',lineCol); carBody.setAttribute('fill',lineCol);
+    carNubL.setAttribute('cx',x1); carNubL.setAttribute('cy',carY); carNubL.setAttribute('fill',lineCol);
+    carNubR.setAttribute('cx',x2); carNubR.setAttribute('cy',carY); carNubR.setAttribute('fill',lineCol);
+    carNubLi.setAttribute('cx',x1); carNubLi.setAttribute('cy',carY);
+    carNubRi.setAttribute('cx',x2); carNubRi.setAttribute('cy',carY);
+    // subtle deterministic hum-pulse on the glow (pure fn of tl)
+    const hum = 0.5+0.5*Math.sin(tl/240);
+    carGlow.setAttribute('opacity',(0.14+0.10*hum).toFixed(3));
+    carBody.setAttribute('opacity',(0.12+0.06*hum).toFixed(3));
+    const carOp = inReset ? clamp(1 - (resetK-0.78)/0.22, 0, 1) : 1;
+    carGroup.setAttribute('opacity', carOp.toFixed(3));
+
+    // ── trailing RIBBON: filled rect from KO line to the car, colored by side ──
+    const ribTop = Math.min(koY, carY), ribBot = Math.max(koY, carY);
+    const ribX1 = CX - 60, ribX2 = CX + 60;   // ribbon is a vertical column behind the car
+    ribbon.setAttribute('d', `M${ribX1} ${koY} L${ribX2} ${koY} L${ribX2} ${carY} L${ribX1} ${carY} Z`);
+    ribbon.setAttribute('fill', above ? 'url(#ribUp)' : (below ? 'url(#ribDn)' : 'none'));
+    ribbon.setAttribute('opacity', inReset ? (1-resetK).toFixed(3) : '1');
+    // bright leading edge line down the center, KO→car
+    ribEdge.setAttribute('x1',CX); ribEdge.setAttribute('x2',CX);
+    ribEdge.setAttribute('y1',koY); ribEdge.setAttribute('y2',carY);
+    ribEdge.setAttribute('stroke',lineCol);
+    ribEdge.setAttribute('opacity', inReset ? (0.85*(1-resetK)).toFixed(3) : (Math.abs(carY-koY)>2 ? '0.7':'0'));
+
+    // ── big price readout ──
+    elPxVal.textContent = '$'+curP.toFixed(2);
+    const dv = curP - M.koPrice;
+    const sign = dv>=0?'+':'−';
+    elPxDl.textContent = sign+Math.abs(dv).toFixed(2);
+    if(dv>0.02){ elPxDl.style.background='rgba(178,237,104,.16)'; elPxDl.style.color=C_UP; }
+    else if(dv<-0.02){ elPxDl.style.background='rgba(212,19,90,.18)'; elPxDl.style.color=C_DN; }
+    else { elPxDl.style.background='rgba(140,145,154,.14)'; elPxDl.style.color=C_NEU; }
+
+    // ── clock + meter + score ──
+    const dispMin = Math.max(0, Math.round(displayMinute(cm)));
+    if(settled){ elClockMin.textContent='FT'; elClockT.classList.add('ft'); elClockT.querySelector('span:last-child').style.opacity='0'; }
+    else { elClockMin.textContent=dispMin; elClockT.classList.remove('ft'); elClockT.querySelector('span:last-child').style.opacity='1'; }
+    elMeter.style.width = (clamp(cm,0,X_END)/X_END*100).toFixed(1)+'%';
+    const sc = scoreAt(Math.min(cm,X_END));
+    elScH.textContent=sc.h; elScA.textContent=sc.a;
+    elScH.style.color = sc.h>sc.a?C_UP:(sc.h<sc.a?'#E6E8EB':'#E6E8EB');
+    elScA.style.color = sc.a>sc.h?C_DN:'#E6E8EB';
+
+    // ── gate live % + active emphasis (most-likely) ──
+    const od = oddsAt(Math.min(cm,X_END));
+    const tot = od.win+od.draw+od.loss || 1;
+    const pw=od.win/tot*100, pd=od.draw/tot*100, pl=od.loss/tot*100;
+    GATES.win.tProb.textContent  = Math.round(pw);
+    GATES.draw.tProb.textContent = Math.round(pd);
+    GATES.loss.tProb.textContent = Math.round(pl);
+    let topK='loss', topV=pl;
+    if(pw>=pd&&pw>=pl){topK='win';topV=pw;} else if(pd>=pw&&pd>=pl){topK='draw';topV=pd;}
+    // emphasize the live most-likely floor: brighten its line + label, dim others
+    [['win',pw],['draw',pd],['loss',pl]].forEach(([k])=>{
+      const G=GATES[k]; const act = (k===topK);
+      G.line.setAttribute('opacity', act? '0.95':'0.4');
+      G.line.setAttribute('stroke-width', act? '3':'2');
+      G.tName.setAttribute('opacity', act? '1':'0.7');
+      G.tProb.setAttribute('opacity', act? '1':'0.65');
+    });
+
+    // ── FT resolve: light up the realized (LOSE) floor ──
+    const atFT = (tl>=T.runEnd && !inReset);
+    GATE_DEF.forEach(gd=>{
+      const G = GATES[gd.k];
+      if(atFT && gd.k===M.realized){
+        const pz = 0.5+0.5*Math.sin((tl-T.runEnd)/170);
+        G.glow.setAttribute('opacity',(0.30+0.30*pz).toFixed(3));
+        G.line.setAttribute('opacity','1'); G.line.setAttribute('stroke-width','3.4');
+      } else if(inReset && gd.k===M.realized){
+        G.glow.setAttribute('opacity',(0.40*(1-resetK)).toFixed(3));
+      } else {
+        G.glow.setAttribute('opacity','0');
+      }
+    });
+
+    // ── FT stamp ──
+    if(atFT){
+      const st=clamp((tl-T.runEnd)/600,0,1);
+      ftStamp.style.opacity=(E.out(st)*0.96).toFixed(2);
+      ftStamp.style.transform='translate(-50%,0) scale('+lerp(0.94,1,E.out(st)).toFixed(3)+')';
+    } else if(inReset){
+      ftStamp.style.opacity=(0.96*(1-resetK)).toFixed(2);
+    } else { ftStamp.style.opacity='0'; }
+
+    // ── GOAL CARDS: pop the same frame the car reaches the goal, dwell, fade ──
+    const IN_MS=300, DWELL_MS=1850, OUT_MS=440;
+    GOALS.forEach((g,gi)=>{
+      const next=GOALS[gi+1];
+      const endByNext = next ? next.tlGoal+40 : Infinity;
+      const visEnd = Math.min(g.tlGoal+DWELL_MS, endByNext);
+      const t = tl - g.tlGoal;
+      let op=0, tx=0, sxc=1;
+      if(!inReset && tl>=g.tlGoal-30 && tl<=visEnd){
+        const inT=clamp((t+30)/IN_MS,0,1);
+        const outT=clamp((tl-(visEnd-OUT_MS))/OUT_MS,0,1);
+        op=E.out(inT)*(1-E.in(outT));
+        tx=lerp(26,0,E.spring(inT))-lerp(0,14,outT);
+        sxc=lerp(0.93,1,E.out(inT));
+      }
+      g.card.style.opacity=op.toFixed(3);
+      // anchor the card at the goal's price height, floated to the RIGHT of the rail-free zone.
+      const gy = clamp(yToPx(priceAt(g.min)), 210, 880);
+      // x: place card to the right of the shaft+% column, away from the rail
+      const cardX = SHAFT.xR + 150 + tx;
+      g.card.style.left = cardX+'px';
+      g.card.style.top = gy+'px';
+      g.card.style.transform = 'translate(0,-50%) scale('+sxc.toFixed(3)+')';
+      g.card.style.zIndex = op>0.05?49:48;
+    });
+  });
+
+  TAIL.ready();
+})();
+</script>
+</body>
+</html>

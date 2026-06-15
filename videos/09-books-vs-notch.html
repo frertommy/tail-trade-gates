@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Books vs Notch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video (1920×1080, no audio)
+     Variant 09 — BOOKS vs NOTCH. Split screen, shared header.
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --amber:#fbbf24;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:var(--bg);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(130% 130% at 50% 46%, transparent 52%, rgba(0,0,0,.60) 100%); }
+  .wm{ position:absolute; left:60px; bottom:40px; z-index:80; color:#fff; opacity:.9; }
+  .wm svg{ display:block; height:22px; width:auto; }
+
+  /* ===== SCENE STYLES ===== */
+  /* full-bleed canvas does the heavy lifting (bars, gates, divider, flashes) */
+  #cv{ position:absolute; inset:0; z-index:10; display:block; }
+
+  /* ---- shared header ---- */
+  .header{ position:absolute; top:46px; left:0; right:0; z-index:40; text-align:center; }
+  .league{ font-family:var(--mono); font-size:15px; letter-spacing:.40em; color:var(--text-2);
+    text-transform:uppercase; }
+  .scorewrap{ display:flex; align-items:center; justify-content:center; gap:34px; margin-top:14px; }
+  .team{ font-family:var(--font); font-weight:600; font-size:30px; letter-spacing:.05em; min-width:300px; }
+  .team.h{ color:var(--text); text-align:right; }
+  .team.a{ color:var(--text-2); text-align:left; }
+  .scorebox{ font-family:var(--mono); font-weight:700; font-size:62px; letter-spacing:.02em;
+    color:#fff; line-height:.9; font-variant-numeric:tabular-nums; min-width:170px; }
+  .scorebox b{ transition:color .15s; }
+  .scorebox .sep{ color:var(--muted); margin:0 8px; }
+  .clockrow{ display:flex; align-items:center; justify-content:center; gap:16px; margin-top:14px; }
+  .live{ display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px;
+    letter-spacing:.24em; color:var(--crimson-l); text-transform:uppercase; }
+  .live .dot{ width:9px; height:9px; border-radius:50%; background:var(--crimson-l);
+    box-shadow:0 0 10px var(--crimson-l); animation:pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
+  .clock{ font-family:var(--mono); font-weight:700; font-size:34px; letter-spacing:.05em; color:var(--text);
+    font-variant-numeric:tabular-nums; }
+
+  /* ---- panel headers (drawn as HTML over the canvas) ---- */
+  .ph{ position:absolute; top:250px; z-index:40; }
+  .ph .src{ font-family:var(--mono); font-size:15px; letter-spacing:.30em; text-transform:uppercase; }
+  .ph .name{ font-family:var(--font); font-weight:700; font-size:38px; letter-spacing:.02em; margin-top:6px; }
+  .ph.left{ left:96px; }
+  .ph.left .src{ color:var(--muted); }
+  .ph.left .name{ color:#9aa0aa; }
+  .ph.right{ right:96px; text-align:right; }
+  .ph.right .src{ color:var(--lime); }
+  .ph.right .name{ color:var(--text); }
+  /* status tag — its own fixed row so it never collides with the readout below */
+  .tag{ position:absolute; top:344px; z-index:40; display:inline-flex; align-items:center; gap:9px; padding:7px 15px;
+    border-radius:var(--r-sm); font-family:var(--mono); font-size:15px; letter-spacing:.20em;
+    text-transform:uppercase; border:1px solid; }
+  .tag.lag, .tag.stale{ left:118px; }
+  .tag.live2{ right:118px; }
+  .tag.lag{ color:var(--amber); border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.07); }
+  .tag.stale{ color:var(--crimson-l); border-color:rgba(212,19,90,.5); background:rgba(212,19,90,.10); }
+  /* status tag for the notch panel */
+  .tag.live2{ color:var(--lime); border-color:rgba(178,237,104,.45); background:rgba(178,237,104,.08); }
+
+  /* ---- big price readout on the Notch side (top of the right panel body) ---- */
+  .pricewrap{ position:absolute; right:118px; top:398px; z-index:40; text-align:right; }
+  .ticker{ font-family:var(--mono); font-size:15px; letter-spacing:.28em; color:var(--lime); text-transform:uppercase; }
+  .price-big{ font-family:var(--mono); font-weight:700; font-size:72px; letter-spacing:-.01em; line-height:.92;
+    color:#fff; font-variant-numeric:tabular-nums; margin-top:4px; text-shadow:0 0 30px rgba(178,237,104,.30); }
+  .price-big .cur{ font-size:36px; color:var(--text-2); vertical-align:top; margin-right:3px; }
+  .delta{ margin-top:10px; font-family:var(--mono); font-size:21px; font-variant-numeric:tabular-nums; }
+  .delta .chip{ display:inline-block; padding:3px 12px; border-radius:var(--r-sm); }
+
+  /* ---- stale verdict readout on the books side (top of the left panel body) ---- */
+  .bookread{ position:absolute; left:118px; top:398px; z-index:40; }
+  .bookread .lab{ font-family:var(--mono); font-size:14px; letter-spacing:.24em; color:var(--muted); text-transform:uppercase; }
+  .bookread .verdict{ font-family:var(--font); font-weight:700; font-size:52px; letter-spacing:.01em; margin-top:4px; line-height:.95; color:#8b909a; }
+  .bookread .sub{ font-family:var(--mono); font-size:17px; letter-spacing:.04em; color:var(--muted); margin-top:10px; }
+
+  /* ---- payoff headline, lower third ---- */
+  .payoff{ position:absolute; left:50%; bottom:74px; transform:translateX(-50%); z-index:50;
+    text-align:center; opacity:0; }
+  .payoff .h{ font-family:var(--font); font-weight:700; font-size:54px; letter-spacing:.01em; line-height:1;
+    color:var(--text); text-shadow:0 4px 30px rgba(0,0,0,.6); }
+  .payoff .h em{ font-style:normal; color:var(--lime); }
+  .payoff .sub{ font-family:var(--mono); font-size:18px; letter-spacing:.26em; color:var(--text-2);
+    text-transform:uppercase; margin-top:14px; }
+</style>
+</head>
+<body data-loop-ms="15000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <!-- ============================================================
+           SCENE — Variant 09: BOOKS vs NOTCH  (match: everton)
+           The real "oracle reacts, books freeze" story. Everton 3-3 vs
+           Man City; a 90+7' equalizer (Doku, data min 112). Traditional
+           books lag (sampled at min - LAG) and FREEZE at the pre-equalizer
+           value during late stoppage → visibly stale (~80% Everton). The
+           Notch oracle reprices INSTANTLY: the DRAW gate snaps to ~98% and
+           the EVE-PERP price settles into the DRAW gate ($117.30).
+
+           DETERMINISM CONTRACT (critical for the capture harness):
+           Every animated quantity is a PURE FUNCTION of the loop-local
+           time `tl` (0..LOOP_MS), recomputed from scratch each frame.
+           NO frame-to-frame accumulation (no `+=`), NO per-frame counters,
+           NO Date.now / wall-clock / rAF-delta reads. Flash intensities,
+           shakes and pulses are closed-form functions of tl (sin/cos/clamp).
+           The image at a given tl is identical regardless of preceding
+           frames (the harness warms a full loop before capturing), and the
+           state at tl=0 equals the state at tl=LOOP_MS (seamless loop).
+           ============================================================ -->
+      <canvas id="cv" width="1920" height="1080"></canvas>
+
+      <!-- shared header: clock + score -->
+      <div class="header">
+        <div class="league" id="league">PREMIER LEAGUE · MAY 4</div>
+        <div class="scorewrap">
+          <span class="team h" id="teamH">EVERTON</span>
+          <span class="scorebox"><b id="scH">0</b><span class="sep">–</span><b id="scA">0</b></span>
+          <span class="team a" id="teamA">MAN CITY</span>
+        </div>
+        <div class="clockrow">
+          <span class="live"><span class="dot"></span>LIVE</span>
+          <span class="clock" id="clock">0'</span>
+        </div>
+      </div>
+
+      <!-- LEFT panel header: traditional books -->
+      <div class="ph left">
+        <div class="src">TRADITIONAL BOOKS</div>
+        <div class="name">Sportsbook odds</div>
+      </div>
+      <div class="tag lag" id="bookTag">⏱ LAGGING</div>
+      <!-- LEFT panel: the stale verdict -->
+      <div class="bookread">
+        <div class="lab">IMPLIED RESULT</div>
+        <div class="verdict" id="bookVerdict">EVERTON WIN</div>
+        <div class="sub" id="bookSub">last update 90'</div>
+      </div>
+
+      <!-- RIGHT panel header: notch oracle -->
+      <div class="ph right">
+        <div class="src">NOTCH ORACLE</div>
+        <div class="name">Live prediction market</div>
+      </div>
+      <div class="tag live2" id="notchTag">● REPRICING LIVE</div>
+      <!-- RIGHT panel: live perp price -->
+      <div class="pricewrap">
+        <div class="ticker" id="ticker">EVE-PERP</div>
+        <div class="price-big"><span class="cur">$</span><span id="priceBig">115.21</span></div>
+        <div class="delta" id="delta"></div>
+      </div>
+
+      <!-- payoff -->
+      <div class="payoff" id="payoff">
+        <div class="h">BOOKS FROZE. <em>THE PRICE DIDN'T.</em></div>
+        <div class="sub" id="payoffSub">90+7′ DOKU · 3–3 · SETTLES $117.30</div>
+      </div>
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+      <div class="wm" id="wm"></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 09: BOOKS vs NOTCH
+   ============================================================ */
+(function(){
+  document.getElementById('wm').innerHTML = TAIL.LOGO;
+
+  const M = window.MATCHES['everton'];
+  const oddsAt = (min)=> window.MATCHES_oddsAt(M, min);
+
+  // ── brand palette ─────────────────────────────────────────────
+  const COL = {
+    bg:'#0C0E12',
+    lime:'#B2ED68', limeL:'#C4F285', limeD:'#93D44A',
+    crimson:'#B30F43', crimsonL:'#D4135A',
+    cyan:'#00D9F5', cyanL:'#33E3F7',
+    amber:'#fbbf24',
+    text:'#E6E8EB', text2:'#8C919A', muted:'#5C6370', border:'#2A3038',
+  };
+  const hexToRgb = h => { if(typeof h!=='string') return [128,128,128]; h=h.replace('#',''); return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; };
+  const safe=(v,d=0)=> Number.isFinite(v)? v : d;
+  const rgba = (h,a)=>{ const [r,g,b]=hexToRgb(h); return `rgba(${r},${g},${b},${TAIL.clamp(safe(a),0,1)})`; };
+  const mix  = (h1,h2,t,a=1)=>{ t=TAIL.clamp(safe(t,0),0,1); const c1=hexToRgb(h1),c2=hexToRgb(h2);
+    return `rgba(${Math.round(TAIL.lerp(c1[0],c2[0],t))},${Math.round(TAIL.lerp(c1[1],c2[1],t))},${Math.round(TAIL.lerp(c1[2],c2[2],t))},${TAIL.clamp(safe(a,1),0,1)})`; };
+
+  // ── hud bindings (static text) ────────────────────────────────
+  document.getElementById('league').textContent = M.league.toUpperCase();
+  document.getElementById('teamH').textContent   = M.subject;
+  document.getElementById('teamA').textContent   = M.opponent;
+  document.getElementById('ticker').textContent   = M.ticker;
+
+  const elClock = document.getElementById('clock');
+  const elScH   = document.getElementById('scH');
+  const elScA   = document.getElementById('scA');
+  const elPrice = document.getElementById('priceBig');
+  const elDelta = document.getElementById('delta');
+  const bookTag = document.getElementById('bookTag');
+  const notchTag= document.getElementById('notchTag');
+  const bookVerdict = document.getElementById('bookVerdict');
+  const bookSub = document.getElementById('bookSub');
+  const payoff  = document.getElementById('payoff');
+
+  const cv  = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = 1920, H = 1080;
+
+  // ── KEY MATCH MOMENTS (data .min axis) ────────────────────────
+  // 90+3' Haaland 3-2 @ min 108; 90+7' Doku 3-3 @ min 112 (the equalizer).
+  const EQUALIZER = 112;          // the 3-3 — oracle snaps to DRAW just after this
+  const BOOK_LAG  = 4;            // books trail the oracle by ~4 (a few real minutes)
+  const BOOK_FREEZE_MIN = 110;    // books freeze at the pre-equalizer read (Everton ~82%)
+  const BOOK_FREEZE_AT  = 110.5;  // once the clock passes here, books stop updating
+
+  // The DRAW snap completes around min 116 (draw 98.1) in the oracle data.
+  const RESOLVE_A = EQUALIZER, RESOLVE_B = 118;   // equalizer → full settle into DRAW
+
+  // ── price: real Notch line, then resolved into the DRAW gate ($117.30) ──
+  function priceAt(min){
+    const raw = window.MATCHES_priceAt(M, min);
+    if(min <= RESOLVE_A) return raw;
+    const k = TAIL.clamp((min - RESOLVE_A)/(RESOLVE_B - RESOLVE_A), 0, 1);
+    return TAIL.lerp(raw, M.settle, TAIL.E.inOut(k));
+  }
+
+  // ── ORACLE odds (live, normalized to 100) ─────────────────────
+  // Just after the equalizer, lock to a near-pure DRAW so the snap is unmistakable
+  // and matches the data's 98%+ draw at settle.
+  function oracleOdds(min){
+    const o = oddsAt(min);
+    let win=o.win, draw=o.draw, loss=o.loss;
+    if(min > RESOLVE_A){
+      const k = TAIL.clamp((min - RESOLVE_A)/(RESOLVE_B - RESOLVE_A), 0, 1);
+      const e = TAIL.E.out(k);
+      win  = TAIL.lerp(win, 1.2, e);
+      draw = TAIL.lerp(draw, 98.4, e);
+      loss = TAIL.lerp(loss, 0.4, e);
+    }
+    const s = (win+draw+loss)||1;
+    return { win:win/s*100, draw:draw/s*100, loss:loss/s*100 };
+  }
+
+  // ── BOOKS odds (lagged + frozen) ──────────────────────────────
+  // Sample the oracle LAGGED; once the clock passes BOOK_FREEZE_AT, hold the
+  // pre-equalizer read so books are visibly stuck on Everton after the 3-3.
+  function bookOdds(min){
+    const sampleMin = (min >= BOOK_FREEZE_AT) ? BOOK_FREEZE_MIN : (min - BOOK_LAG);
+    const o = oddsAt(sampleMin);
+    const s = (o.win+o.draw+o.loss)||1;
+    return { win:o.win/s*100, draw:o.draw/s*100, loss:o.loss/s*100 };
+  }
+  // is the books panel frozen (stale) at this minute?
+  const booksFrozen = (min)=> min >= BOOK_FREEZE_AT;
+
+  // ── score from goals ──────────────────────────────────────────
+  function scoreAt(min){
+    let h=0,a=0;
+    for(const g of M.goals){ if(min+0.001>=g.min){ if(g.by==='subject') h++; else a++; } }
+    return [h,a];
+  }
+
+  // ── real broadcast clock from the internal axis (goal labels anchor it) ──
+  const clkAnchors = [   // [data.min, realClock]
+    [M.xMin, 0], [0,0], [38,38], [85,70], [93,78], [99,84], [108,93], [112,97], [118,98], [M.xMax,98],
+  ];
+  function realClock(ox){
+    if(ox<=clkAnchors[0][0]) return 0;
+    for(let i=1;i<clkAnchors.length;i++){ if(ox<=clkAnchors[i][0]){
+      const a=clkAnchors[i-1], b=clkAnchors[i], t=(ox-a[0])/((b[0]-a[0])||1);
+      return TAIL.lerp(a[1],b[1],t);
+    }}
+    return 98;
+  }
+  function clockLabel(ox){
+    const rc = realClock(ox);
+    if(rc<=90) return Math.max(0,Math.floor(rc))+"'";
+    return "90+"+Math.max(1,Math.round(rc-90))+"'";
+  }
+
+  // ── goal kick (visual punch on the price) — pure fn of min via window ──
+  // Strength of the most-recent goal's "kick" as the clock passes it.
+  function goalKick(min){
+    let best=0, sign=1;
+    for(const g of M.goals){
+      const d = min - g.min;
+      if(d>=0 && d<3.0){ const k = 1-d/3.0; if(k>best){ best=k; sign = (g.by==='subject')?1:-1; } }
+    }
+    return best*sign;
+  }
+
+  // ── panel geometry ────────────────────────────────────────────
+  const MIDX   = W/2;
+  const PANEL_TOP = 548;          // bars/gates start here (below the readout block)
+
+  // ──────────────────────────────────────────────────────────────
+  //  TIMELINE: KO → FT sweep, dwell on the verdict, fast fly-back.
+  //  All endpoints resolve to camMin = MIN_START so the loop is seamless.
+  // ──────────────────────────────────────────────────────────────
+  const MIN_START = -6;
+  const MIN_END   = 124;
+
+  // ── loop-progress → match-minute KEYFRAMES ────────────────────
+  // Explicit, tunable beats. Dull stretches advance fast; the late-stoppage
+  // comeback + the 90+7' equalizer + the snap get the lion's share of screen
+  // time. Endpoints both resolve to MIN_START → seamless loop. Linear between
+  // keys (with a smoothstep micro-ease per segment) keeps motion clean and the
+  // mapping a pure function of prog.
+  const KF = [
+    [0.00, -6 ],   // KO establish
+    [0.05,  2 ],
+    [0.15, 40 ],   // zip to Doku 0-1 (data min 38)
+    [0.23, 82 ],   // skim the goalless mid, arrive just before the comeback
+    [0.33, 90 ],   // 1-1 (85) → into 2-1 (93): comeback begins
+    [0.42, 99 ],   // 3-1 — Everton WIN-bound (~$121)
+    [0.51, 108],   // 90+3' Haaland 3-2
+    [0.60, 112],   // 90+7' DOKU 3-3 — THE EQUALIZER
+    [0.67, 116],   // the oracle SNAP completes (DRAW → 98%)
+    [0.72, 124],   // price settles into the DRAW gate; books frozen
+    [0.84, 124],   // payoff dwell (held)
+    [1.00, -6 ],   // eased fly-back to KO (seamless)
+  ];
+  function minAtProg(prog){
+    if(prog<=KF[0][0]) return KF[0][1];
+    for(let i=1;i<KF.length;i++){
+      if(prog<=KF[i][0]){
+        const a=KF[i-1], b=KF[i];
+        let t=(prog-a[0])/((b[0]-a[0])||1);
+        t=t*t*(3-2*t);                 // smoothstep within the segment
+        return TAIL.lerp(a[1], b[1], t);
+      }
+    }
+    return KF[KF.length-1][1];
+  }
+
+  TAIL.loop((tl)=>{
+    const prog = tl / TAIL.LOOP_MS;                  // 0..1
+
+    // camera minute from the keyframe map; derive dwell + rewind windows.
+    const camMin = minAtProg(prog);
+    const dwell  = TAIL.clamp((prog-0.72)/(0.84-0.72), 0, 1);   // 0..1 verdict held
+    const rewind = prog>0.84 ? (prog-0.84)/(1-0.84) : 0;        // 0..1 fly-back
+
+    const oOra = oracleOdds(camMin);
+    const oBk  = bookOdds(camMin);
+    const price = priceAt(camMin);
+    const frozen = booksFrozen(camMin) && rewind<0.5;
+    const past33 = camMin >= EQUALIZER && rewind<0.5;  // after the 3-3 equalizer
+
+    // ── HEADER: clock + score ──
+    elClock.textContent = clockLabel(camMin);
+    const [sh,sa] = scoreAt(camMin);
+    elScH.textContent = sh; elScA.textContent = sa;
+    elScH.style.color = sh>sa ? COL.lime : (sh<sa ? COL.crimsonL : '#fff');
+    elScA.style.color = sa>sh ? COL.crimsonL : (sa<sh ? COL.text2 : '#fff');
+
+    // ── NOTCH price readout ──
+    elPrice.textContent = price.toFixed(2);
+    const dv = price - M.koPrice, up = dv>=0;
+    elDelta.innerHTML = `<span class="chip" style="background:${up?rgba(COL.lime,.16):rgba(COL.crimson,.18)};color:${up?COL.limeL:COL.crimsonL}">`
+      + `${up?'▲':'▼'} ${up?'+':'−'}${Math.abs(dv).toFixed(2)} <span style="opacity:.7">(${up?'+':'−'}${(Math.abs(dv)/M.koPrice*100).toFixed(2)}%)</span></span>`;
+
+    // ── BOOKS status tag + verdict ──
+    if(frozen){
+      bookTag.className='tag stale'; bookTag.textContent='⏱ STALE · NOT UPDATED';
+      bookVerdict.textContent='EVERTON WIN'; bookVerdict.style.color = past33 ? rgba(COL.crimsonL,.85) : '#8b909a';
+      bookSub.textContent = "frozen at 90' · "+Math.round(oBk.win)+'% EVE';
+      bookSub.style.color = past33 ? rgba(COL.crimsonL,.8) : COL.muted;
+    } else {
+      bookTag.className='tag lag'; bookTag.textContent='⏱ LAGGING';
+      // verdict = books' current most-likely
+      const bk = (oBk.win>=oBk.draw && oBk.win>=oBk.loss)?'EVERTON WIN':(oBk.draw>=oBk.loss?'DRAW':'MAN CITY WIN');
+      bookVerdict.textContent = bk; bookVerdict.style.color='#8b909a';
+      bookSub.textContent = 'lagging the live market';
+      bookSub.style.color = COL.muted;
+    }
+    notchTag.style.opacity = (rewind>0.5)?0.4:1;
+
+    // ════════════════════════════════════════════════════════════
+    //  CANVAS
+    // ════════════════════════════════════════════════════════════
+    // base bg
+    ctx.clearRect(0,0,W,H);
+    const bgGrad = ctx.createLinearGradient(0,0,0,H);
+    bgGrad.addColorStop(0,'#0A0C10'); bgGrad.addColorStop(0.5,'#0C0E12'); bgGrad.addColorStop(1,'#08090C');
+    ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
+
+    // left panel washed/dim, right panel faint lime tint
+    ctx.fillStyle = rgba('#0A0C10', 0.45); ctx.fillRect(0,0,MIDX,H);
+    const rg = ctx.createLinearGradient(MIDX,0,W,0);
+    rg.addColorStop(0, rgba(COL.lime,0.020)); rg.addColorStop(1, rgba(COL.lime,0.0));
+    ctx.fillStyle=rg; ctx.fillRect(MIDX,0,MIDX,H);
+
+    // ── panel framing boxes ──
+    const boxTop=300, boxBot=920, padX=72;
+    function panelBox(x0,x1,accent,alpha){
+      ctx.save();
+      ctx.strokeStyle = rgba(accent, alpha);
+      ctx.lineWidth=1.5;
+      const r=14;
+      ctx.beginPath();
+      ctx.moveTo(x0+r,boxTop); ctx.lineTo(x1-r,boxTop); ctx.arcTo(x1,boxTop,x1,boxTop+r,r);
+      ctx.lineTo(x1,boxBot-r); ctx.arcTo(x1,boxBot,x1-r,boxBot,r); ctx.lineTo(x0+r,boxBot);
+      ctx.arcTo(x0,boxBot,x0,boxBot-r,r); ctx.lineTo(x0,boxTop+r); ctx.arcTo(x0,boxTop,x0+r,boxTop,r);
+      ctx.stroke();
+      ctx.restore();
+    }
+    panelBox(padX, MIDX-46, COL.muted, 0.30);
+    panelBox(MIDX+46, W-padX, COL.lime, 0.32 + (past33?0.25:0));
+
+    // ════════════════════════════════════════════════════════════
+    //  CENTER DIVIDER + "SAME MATCH · TWO PRICES"
+    // ════════════════════════════════════════════════════════════
+    {
+      const dg = ctx.createLinearGradient(0,boxTop-30,0,boxBot+30);
+      dg.addColorStop(0, rgba(COL.border,0)); dg.addColorStop(0.5, rgba(COL.text2,0.5)); dg.addColorStop(1, rgba(COL.border,0));
+      ctx.strokeStyle=dg; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(MIDX, boxTop-30); ctx.lineTo(MIDX, boxBot+30); ctx.stroke();
+      // VS coin
+      const vy=boxTop-2;
+      ctx.fillStyle=rgba('#0C0E12',1);
+      ctx.beginPath(); ctx.arc(MIDX,vy,30,0,7); ctx.fill();
+      ctx.strokeStyle=rgba(COL.text2,0.6); ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(MIDX,vy,30,0,7); ctx.stroke();
+      ctx.fillStyle=COL.text2; ctx.font="700 20px 'Space Grotesk'"; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('VS', MIDX, vy+1);
+      // label at the very bottom center
+      ctx.font="400 14px 'Space Mono'"; ctx.fillStyle=rgba(COL.text2,0.7);
+      ctx.textBaseline='alphabetic';
+      ctx.fillText('SAME MATCH · TWO PRICES', MIDX, boxBot+50);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LEFT PANEL — TRADITIONAL BOOKS: W/D/L probability bars.
+    //  Sluggish (lagged) and FROZEN in late stoppage → stale.
+    // ════════════════════════════════════════════════════════════
+    drawBars({
+      x0: padX+40, x1: MIDX-86,
+      odds: oBk,
+      dim: true,
+      frozen: frozen,
+      past33: past33,
+      tl
+    });
+
+    // ════════════════════════════════════════════════════════════
+    //  RIGHT PANEL — NOTCH ORACLE: the three GATES repricing live.
+    //  Each gate = target $ + live implied %. DRAW snaps to ~98% at
+    //  the equalizer with a lime flash; price settles in the DRAW gate.
+    // ════════════════════════════════════════════════════════════
+    drawGates({
+      x0: MIDX+86, x1: W-padX-40,
+      odds: oOra,
+      price, camMin, past33, dwell, rewind, tl
+    });
+
+    // ── payoff headline reveal (after the 3-3, fades during fly-back) ──
+    {
+      let a=0;
+      if(camMin>=EQUALIZER+0.5 && rewind<0.5){
+        const inK = TAIL.clamp((camMin-(EQUALIZER+0.5))/3, 0, 1);
+        a = TAIL.E.out(inK);
+      }
+      if(rewind>0) a *= TAIL.clamp(1-rewind*2.2,0,1);
+      payoff.style.opacity = a.toFixed(3);
+      payoff.style.transform = `translateX(-50%) translateY(${TAIL.lerp(16,0,a).toFixed(1)}px)`;
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  //  drawBars — horizontal-ish W/D/L probability bars (books panel)
+  //  Pure render from supplied odds; visual state from flags only.
+  // ──────────────────────────────────────────────────────────────
+  function drawBars({x0,x1,odds,dim,frozen,past33,tl}){
+    const rows=[
+      {key:'win',  label:'EVERTON WIN',  val:odds.win,  col:COL.lime},
+      {key:'draw', label:'DRAW',         val:odds.draw, col:COL.cyan},
+      {key:'loss', label:'MAN CITY WIN', val:odds.loss, col:COL.crimsonL},
+    ];
+    const topY=PANEL_TOP, gap=42, barH=56, barW=(x1-x0);
+    const dimA = dim ? 0.5 : 1;          // global dim for the books column
+    const staleExtra = frozen ? 0.78 : 1; // extra desaturation when frozen
+
+    for(let i=0;i<rows.length;i++){
+      const r=rows[i];
+      const y = topY + i*(barH+gap);
+      // label
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      ctx.font="600 19px 'Space Grotesk'"; ctx.fillStyle=rgba('#aeb4be', dimA*staleExtra);
+      ctx.fillText(r.label, x0, y-12);
+      // value %
+      ctx.textAlign='right'; ctx.font="700 30px 'Space Mono'";
+      ctx.fillStyle=rgba('#c2c7d0', dimA*staleExtra);
+      ctx.fillText(Math.round(r.val)+'%', x1, y-8);
+      // track
+      ctx.fillStyle=rgba('#161B22', 0.9);
+      roundRect(x0,y,barW,barH,8); ctx.fill();
+      // fill (desaturated toward grey when frozen)
+      const w = barW * TAIL.clamp(r.val/100,0,1);
+      const fillCol = frozen ? mix(r.col,'#6b7280',0.55) : r.col;
+      const grad=ctx.createLinearGradient(x0,0,x0+w,0);
+      grad.addColorStop(0, mix(fillCol,'#000000',0.25, dimA*0.85));
+      grad.addColorStop(1, rgba(fillCol, dimA*0.62*staleExtra));
+      ctx.fillStyle=grad;
+      roundRect(x0,y,Math.max(8,w),barH,8); ctx.fill();
+      // thin top highlight on the fill
+      ctx.fillStyle=rgba('#ffffff', dimA*0.06);
+      roundRect(x0,y,Math.max(8,w),3,2); ctx.fill();
+    }
+
+    // FROZEN overlay: a hatch + a STALE stamp so it reads as stuck/wrong
+    if(frozen){
+      const yT=topY-14, yB=topY+rows.length*(barH+gap)-gap+barH+14;
+      // diagonal hatch (static pattern → deterministic)
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x0-16, yT, (x1-x0)+32, yB-yT); ctx.clip();
+      ctx.strokeStyle = rgba(past33?COL.crimsonL:COL.amber, 0.06); ctx.lineWidth=2;
+      for(let xx=x0-300; xx<x1+40; xx+=22){
+        ctx.beginPath(); ctx.moveTo(xx, yB); ctx.lineTo(xx+(yB-yT), yT); ctx.stroke();
+      }
+      ctx.restore();
+      // freeze ring + "❄ FROZEN" near the value column
+      const fa = 0.55 + 0.45*Math.abs(Math.sin(tl*0.004));
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.font="700 17px 'Space Mono'";
+      const stampCol = past33?COL.crimsonL:COL.amber;
+      const sx=x0, sy=yB-2;
+      ctx.fillStyle=rgba(stampCol, fa);
+      ctx.fillText('❄ NO UPDATE SINCE 90′', sx, sy);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  drawGates — the three Notch outcome gates (right panel).
+  //  Live %, target $, and a luminous bar. DRAW gate FLARES at the
+  //  equalizer; the live price marker sits in the realized gate.
+  // ──────────────────────────────────────────────────────────────
+  function drawGates({x0,x1,odds,price,camMin,past33,dwell,rewind,tl}){
+    const rows=[
+      {key:'win',  label:'WIN',  team:'EVERTON',  val:odds.win,  target:M.gates.win.price,  col:COL.lime},
+      {key:'draw', label:'DRAW', team:'',         val:odds.draw, target:M.gates.draw.price, col:COL.cyan},
+      {key:'loss', label:'LOSE', team:'MAN CITY', val:odds.loss, target:M.gates.loss.price, col:COL.crimsonL},
+    ];
+    const topY=PANEL_TOP, gap=42, barH=60, barW=(x1-x0);
+    // which gate currently holds the price (realized lane visualization)
+    // price→which gate is nearest
+    const lead = (odds.win>=odds.draw && odds.win>=odds.loss)?'win':(odds.draw>=odds.loss?'draw':'loss');
+
+    // DRAW snap flash: a bright pulse on the DRAW gate as it SNAPS (camMin ~112→118,
+    // peaking ~114.5 where DRAW crosses 50%→98%). A smooth bump centered on the flip
+    // so the flare lands with the bar fill. Pure function of camMin → deterministic + seamless.
+    let drawSnap = 0;
+    if(camMin >= EQUALIZER && rewind<0.5){
+      const c = 114.5;                                  // flip centre
+      const d = Math.abs(camMin - c);
+      drawSnap = TAIL.clamp(1 - d/5.5, 0, 1);           // triangular bump, ~9-min wide
+      drawSnap = TAIL.E.out(drawSnap);
+    }
+
+    for(let i=0;i<rows.length;i++){
+      const r=rows[i];
+      const y = topY + i*(barH+gap);
+      const isLead = (r.key===lead);
+      const flare = (r.key==='draw') ? drawSnap : 0;
+
+      // label (word + team)
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      ctx.font="700 21px 'Space Grotesk'";
+      ctx.fillStyle=rgba(r.col, 0.55 + (isLead?0.45:0.25) + flare*0.4);
+      ctx.fillText(r.label + (r.team?('  '+r.team):''), x0, y-14);
+      // target $
+      ctx.textAlign='left'; ctx.font="400 14px 'Space Mono'";
+      ctx.fillStyle=rgba(COL.text2, 0.8);
+      ctx.fillText('TARGET $'+r.target.toFixed(2), x0+ (r.team?260:120), y-14);
+
+      // live %
+      ctx.textAlign='right'; ctx.font="700 34px 'Space Mono'";
+      ctx.fillStyle=rgba(r.col, 0.95 + flare*0.05);
+      if(flare>0.05){ ctx.save(); ctx.shadowColor=rgba(r.col,flare); ctx.shadowBlur=24*flare; }
+      ctx.fillText(Math.round(r.val)+'%', x1, y-10);
+      if(flare>0.05) ctx.restore();
+
+      // track
+      ctx.fillStyle=rgba('#11161D', 0.95);
+      roundRect(x0,y,barW,barH,9); ctx.fill();
+      // gate fill (luminous), boosted on lead + flare
+      const w = barW * TAIL.clamp(r.val/100,0,1);
+      const grad=ctx.createLinearGradient(x0,0,x0+w,0);
+      grad.addColorStop(0, mix(r.col,'#000000',0.20, 0.95));
+      grad.addColorStop(1, rgba(r.col, 0.78 + flare*0.22));
+      ctx.save();
+      if(isLead || flare>0.05){ ctx.shadowColor=rgba(r.col, 0.5+flare*0.5); ctx.shadowBlur=22 + flare*40; }
+      ctx.fillStyle=grad;
+      roundRect(x0,y,Math.max(9,w),barH,9); ctx.fill();
+      ctx.restore();
+      // top highlight
+      ctx.fillStyle=rgba('#ffffff', 0.10 + flare*0.25);
+      roundRect(x0,y,Math.max(9,w),4,2); ctx.fill();
+      // leading edge marker
+      ctx.fillStyle=rgba('#ffffff', 0.55 + flare*0.4);
+      ctx.fillRect(x0+Math.max(9,w)-2, y+6, 2, barH-12);
+
+      // a little energy ticks on the DRAW gate during the snap
+      if(flare>0.05){
+        ctx.strokeStyle=rgba('#ffffff', 0.5*flare); ctx.lineWidth=2;
+        for(let t=0;t<10;t++){
+          const px = x0 + 14 + t*((Math.max(9,w)-20)/10);
+          ctx.beginPath(); ctx.moveTo(px, y+barH-6); ctx.lineTo(px+6, y+6); ctx.stroke();
+        }
+      }
+    }
+
+    // ── PRICE MARKER: a mini price-axis UNDER the gates with a glowing puck at
+    //    the live EVE-PERP price, sitting between the three target $ ticks so you
+    //    SEE it land in the realized (DRAW) gate. Lives in its own band below the
+    //    rows → never overlaps a gate. Pure function of price. ──
+    {
+      const axisY = PANEL_TOP + 3*(barH+gap) - gap + 34;   // just below the 3rd row
+      const pmin = M.gates.loss.price, pmax = M.gates.win.price;
+      const tP = TAIL.clamp((price - pmin)/(pmax - pmin), 0, 1);
+      const ax0 = x0, ax1 = x1, aw = ax1-ax0;
+      const px = ax0 + tP*aw;
+      // which gate is the price currently inside (nearest target)
+      let bestRow=1, bestD=1e9;
+      rows.forEach((r,i)=>{ const d=Math.abs(price-r.target); if(d<bestD){bestD=d;bestRow=i;} });
+      const inGate = rows[bestRow];
+      // axis track
+      ctx.strokeStyle=rgba(COL.border, 0.9); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(ax0, axisY); ctx.lineTo(ax1, axisY); ctx.stroke();
+      // the three target ticks (LOSE / DRAW / WIN) on the axis, colour-coded
+      rows.forEach(r=>{
+        const tt=TAIL.clamp((r.target-pmin)/(pmax-pmin),0,1); const tx=ax0+tt*aw;
+        ctx.strokeStyle=rgba(r.col,0.55); ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(tx,axisY-7); ctx.lineTo(tx,axisY+7); ctx.stroke();
+        ctx.fillStyle=rgba(r.col,0.7); ctx.font="400 11px 'Space Mono'"; ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.fillText('$'+r.target.toFixed(2), tx, axisY+11);
+      });
+      // connector from the realized gate's bar down to the puck (shows the landing)
+      const gateY = PANEL_TOP + bestRow*(barH+gap) + barH;
+      ctx.strokeStyle=rgba(inGate.col, 0.5); ctx.lineWidth=2; ctx.setLineDash([4,5]);
+      ctx.beginPath(); ctx.moveTo(px, gateY); ctx.lineTo(px, axisY-14); ctx.stroke(); ctx.setLineDash([]);
+      // glowing price puck on the axis
+      const glow=ctx.createRadialGradient(px,axisY,0,px,axisY,30);
+      glow.addColorStop(0, rgba('#ffffff',0.95)); glow.addColorStop(0.3, rgba(COL.limeL,0.85)); glow.addColorStop(1, rgba(COL.lime,0));
+      ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(px,axisY,30,0,7); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(px,axisY,5,0,7); ctx.fill();
+      // price tag floating ABOVE the axis (clear of the ticks below)
+      ctx.font="700 19px 'Space Mono'"; const lbl='$'+price.toFixed(2);
+      const tw=ctx.measureText(lbl).width; const cw=tw+24, ch=32;
+      let cx0 = TAIL.clamp(px-cw/2, ax0, ax1-cw);
+      const tagY = axisY-30;
+      ctx.fillStyle=rgba('#0C0E12',0.97); roundRect(cx0, tagY-ch/2, cw, ch, 7); ctx.fill();
+      ctx.strokeStyle=rgba(COL.limeL,0.85); ctx.lineWidth=1.5; roundRect(cx0, tagY-ch/2, cw, ch, 7); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(lbl, cx0+cw/2, tagY+1);
+      ctx.textBaseline='alphabetic';
+    }
+  }
+
+  // rounded-rect helper
+  function roundRect(x,y,w,h,r){
+    r=Math.min(r,h/2,w/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+  }
+
+  TAIL.ready();
+})();
+</script>
+</body>
+</html>

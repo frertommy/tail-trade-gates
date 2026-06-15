@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Treble (Three-Match Montage)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video (1920×1080, no audio)
+     Variant 12 — TREBLE / THREE-MATCH MONTAGE
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --amber:#fbbf24;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:var(--bg);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(128% 128% at 50% 44%, transparent 46%, rgba(0,0,0,.66) 100%); }
+  .wm{ position:absolute; left:64px; bottom:50px; z-index:80; color:#fff; opacity:.92; }
+  .wm svg{ display:block; height:23px; width:auto; }
+
+  /* everything visual is rendered on one full-frame canvas (deterministic, pure-tl) */
+  #cv{ position:absolute; inset:0; z-index:10; display:block; }
+</style>
+</head>
+<body data-loop-ms="17000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <!-- ============================================================
+           SCENE — Variant 12: TREBLE / THREE-MATCH MONTAGE
+           A fast proof-reel cycling all three real matches, each a quick
+           mini price-chart with its W/D/L gates, reacting to its goals and
+           resolving into its realized gate — slide/wipe transitions between
+           acts — then an OUTRO brand beat. Loops seamlessly back to Act 1.
+
+           DETERMINISM CONTRACT (critical for the capture harness):
+           Every animated quantity is a PURE FUNCTION of the loop-local time
+           `tl` (0..LOOP_MS), recomputed from scratch each frame. NO
+           frame-to-frame accumulation (`+=`), NO per-frame counters, NO
+           Date.now / wall-clock / rAF-delta reads. The only randomness is a
+           fixed-seed field built once at load. So the image at a given `tl`
+           is identical regardless of preceding frames (the capturer warms a
+           full loop first). Seamless: state at tl=0 === state at tl=LOOP_MS.
+           ============================================================ -->
+      <canvas id="cv" width="1920" height="1080"></canvas>
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+      <div class="wm" id="wm"></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 12: TREBLE / THREE-MATCH MONTAGE
+   ============================================================ */
+(function(){
+  document.getElementById('wm').innerHTML = TAIL.LOGO;
+
+  const { clamp, lerp, map, E } = TAIL;
+  const cv  = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = 1920, H = 1080;
+
+  // ── brand palette ────────────────────────────────────────────
+  const COL = {
+    bg:'#0C0E12', bg2:'#0A0C10', bg3:'#070809',
+    lime:'#B2ED68', limeL:'#C4F285', limeD:'#93D44A',
+    crimson:'#B30F43', crimsonL:'#D4135A',
+    cyan:'#00D9F5', cyanL:'#33E3F7',
+    amber:'#fbbf24',
+    text:'#E6E8EB', text2:'#8C919A', muted:'#5C6370',
+    grid:'#1b2733', gridL:'#22303d', border:'#2A3038',
+  };
+  const GATECOL = { win:COL.lime, draw:COL.cyan, loss:COL.crimsonL };
+
+  const hexToRgb = h => { h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; };
+  const RGB = {}; for(const k in COL){ if(COL[k][0]==='#') RGB[k]=hexToRgb(COL[k]); }
+  const safe = (v,d=0)=> Number.isFinite(v)? v : d;
+  const rgba = (h,a)=>{ let c = (typeof h==='string' && h[0]==='#')?hexToRgb(h):h;
+    if(!c || c[0]===undefined) c=[230,232,235];   // defensive: never throw → never blank
+    return `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${clamp(safe(a),0,1)})`; };
+  const mix = (h1,h2,t,a=1)=>{ t=clamp(safe(t,0),0,1); const c1=hexToRgb(h1),c2=hexToRgb(h2);
+    return `rgba(${Math.round(lerp(c1[0],c2[0],t))},${Math.round(lerp(c1[1],c2[1],t))},${Math.round(lerp(c1[2],c2[2],t))},${clamp(safe(a,1),0,1)})`; };
+
+  // ── fonts ────────────────────────────────────────────────────
+  const fG = (w,px)=> `${w} ${px}px 'Space Grotesk', sans-serif`;
+  const fM = (w,px)=> `${w} ${px}px 'Space Mono', monospace`;
+
+  // ════════════════════════════════════════════════════════════
+  //  ACT DEFINITIONS — one per match, with the per-act narrative
+  //  beats (goal callouts, settle line, decisive-prob picker).
+  // ════════════════════════════════════════════════════════════
+  const M = window.MATCHES;
+
+  // For each match the price line in data resolves to m.settle; we sweep an
+  // internal "chart minute" from xMin to a touch past ftMin. The price line
+  // ends exactly at m.settle (the realized resolution), and we land it on the
+  // realized gate band for the "settles into [GATE]" beat.
+
+  // shownClock: data .min is an internal axis; map it to a believable broadcast
+  // clock using per-match anchor pairs so the displayed minute matches reality.
+  function makeClock(anchors){
+    return (cm)=>{
+      if(cm<=anchors[0][0]) return anchors[0][1];
+      for(let i=1;i<anchors.length;i++){
+        if(cm<=anchors[i][0]){ const a=anchors[i-1],b=anchors[i]; return lerp(a[1],b[1],(cm-a[0])/(b[0]-a[0])); }
+      }
+      return anchors[anchors.length-1][1];
+    };
+  }
+
+  const ACTS = [
+    {
+      key:'forest', m:M.forest, realized:'win',
+      // decisive prob to surface per gate (the live %, driven by oddsAt)
+      decisive:'win',
+      sub:'FLAT… THEN THE 89′ STRIKE',
+      // x sweep window (chart-min); pre-KO held flat as history
+      xEnd:128,
+      clock: makeClock([[-10,-2],[0,0],[45,45],[80,80],[89,89],[110,90],[128,93]]),
+      // goal callouts keyed by chart-min
+      events:[
+        { min:89, lab:"89′ FOREST", sub:"1–0 · SNAPS THROUGH WIN", col:COL.lime, dir:'up' },
+      ],
+      settleLab:'WIN', settleNote:'MISS $0.01',
+    },
+    {
+      key:'liverpool', m:M.liverpool, realized:'loss',
+      decisive:'loss',
+      sub:'0–2 · 2–2 · 2–3 — THE SWING',
+      xEnd:124,
+      clock: makeClock([[-60,-2],[0,0],[6,6],[14,14],[45,45],[62,47],[71,56],[90,77],[92,77],[110,90],[124,94]]),
+      events:[
+        { min:14, lab:"14′ SESKO", sub:"0–2 · CRATERS TO LOSE", col:COL.crimsonL, dir:'down' },
+        { min:71, lab:"56′ GAKPO", sub:"2–2 · RIPS TOWARD WIN", col:COL.lime, dir:'up' },
+        { min:92, lab:"77′ MAINOO", sub:"2–3 · SETTLES ON LOSE", col:COL.crimsonL, dir:'down' },
+      ],
+      settleLab:'LOSE', settleNote:'$179.09',
+    },
+    {
+      key:'everton', m:M.everton, realized:'draw',
+      decisive:'draw',
+      sub:'3–1 WIN‑BOUND — THEN 90+7′',
+      xEnd:122,
+      clock: makeClock([[-55,-2],[0,0],[38,38],[85,70],[93,78],[99,84],[108,93],[112,97],[122,98]]),
+      events:[
+        { min:99, lab:"84′ EVERTON", sub:"3–1 · LINED UP FOR WIN", col:COL.lime, dir:'up' },
+        { min:112, lab:"90+7′ DOKU", sub:"3–3 · FLIPS TO DRAW", col:COL.cyan, dir:'down' },
+      ],
+      settleLab:'DRAW', settleNote:'$117.30',
+    },
+  ];
+
+  // priceAt that RESOLVES into the realized gate band at full-time.
+  // The raw Notch line already ends at ~m.settle, but for everton the raw
+  // array tops out ~119.2 while settle=117.30 — so after the last opponent
+  // event we ease toward m.settle by ftMin (the visible veer through DRAW).
+  function makePriceAt(act){
+    const m = act.m;
+    const lastOpp = m.goals.filter(g=>g.by==='opponent').slice(-1)[0];
+    const RES_A = lastOpp ? lastOpp.min : m.ftMin-8;
+    const RES_B = m.ftMin;
+    return (cm)=>{
+      const raw = window.MATCHES_priceAt(m, cm);
+      if(cm<=RES_A || act.realized==='win') return raw;   // win acts already land cleanly
+      const k = clamp((cm-RES_A)/(RES_B-RES_A),0,1);
+      return lerp(raw, m.settle, E.inOut(k));
+    };
+  }
+
+  // precompute per-act static bits
+  for(const a of ACTS){
+    a.priceAt = makePriceAt(a);
+    a.oddsAt  = (cm)=> window.MATCHES_oddsAt(a.m, cm);
+    // y range padded a touch so gates + line breathe
+    a.yMin = a.m.priceMin; a.yMax = a.m.priceMax;
+    a.gates = [
+      { key:'loss', label:'LOSE', price:a.m.gates.loss.price, col:COL.crimsonL },
+      { key:'draw', label:'DRAW', price:a.m.gates.draw.price, col:COL.cyan },
+      { key:'win',  label:'WIN',  price:a.m.gates.win.price,  col:COL.lime  },
+    ];
+  }
+
+  // ── score helper ─────────────────────────────────────────────
+  function scoreAt(m, cm){
+    let h=0,a=0;
+    for(const g of m.goals){ if(cm+0.001>=g.min){ if(g.by==='subject') h++; else a++; } }
+    return [h,a];
+  }
+  function mostLikely(o){ return (o.win>=o.draw && o.win>=o.loss)?'win':(o.draw>=o.loss?'draw':'loss'); }
+
+  // ════════════════════════════════════════════════════════════
+  //  TIMELINE — four scenes inside one LOOP, with slide/wipe
+  //  transitions. All boundaries pure functions of tl.
+  //  Scene order: ACT1 forest, ACT2 liverpool, ACT3 everton, OUTRO.
+  //  Each act gets an equal slice; transitions overlap the slice edges.
+  // ════════════════════════════════════════════════════════════
+  const LOOP = TAIL.LOOP_MS;                 // 17000
+  const ACT_MS = 4400;                       // each match act
+  const OUT_MS = LOOP - ACT_MS*3;            // outro fills the remainder (~3800)
+  const TRANS  = 720;                        // slide-wipe duration
+
+  // scene starts
+  const S = [0, ACT_MS, ACT_MS*2, ACT_MS*3]; // act1, act2, act3, outro start
+  const SCENE_DUR = [ACT_MS, ACT_MS, ACT_MS, OUT_MS];
+
+  // Within an act: brief intro (header swings in), the chart sweep, the settle
+  // hold. The chart-minute sweep itself is a pure fn of local act-time.
+  function actLocal(tl, i){ return tl - S[i]; }
+
+  // chart-minute as a fn of local act time (ms)
+  function chartMin(act, t){
+    const m = act.m;
+    const x0 = m.xMin, x1 = act.xEnd;
+    const TIN = 360;                          // header settle before sweep starts
+    const TSW = ACT_MS - 1500;                // sweep completes here
+    if(t < TIN) return x0;
+    if(t < TSW) return map(t, TIN, TSW, x0, x1);
+    return x1;                                // settled hold
+  }
+
+  // ── deterministic spark field (built once) for goal bursts ───
+  const SPARKS = [];
+  for(let i=0;i<40;i++){
+    const ang = TAIL.rng()*Math.PI*2;
+    SPARKS.push({ ang, sp:0.5+TAIL.rng()*0.9, r0:0.2+TAIL.rng()*0.5, size:1+TAIL.rng()*2.4 });
+  }
+  // ambient motes (parallax dust) — static field, motion is pure fn of tl
+  const MOTES = [];
+  for(let i=0;i<70;i++){
+    MOTES.push({ x:TAIL.rng()*W, y:TAIL.rng()*H, r:0.5+TAIL.rng()*1.6, sp:0.2+TAIL.rng()*0.7, ph:TAIL.rng()*6.28 });
+  }
+
+  // plot rectangle (shared across acts) — center stage, room for header + gates
+  const PLOT = { x0:150, x1:1430, y0:300, y1:902 };
+  const GATE_X = 1456;                        // gate bracket column anchor (right)
+
+  // ════════════════════════════════════════════════════════════
+  //  ATMOSPHERE — background gradient + drifting motes. Tinted by
+  //  the live "lead" gate colour of whatever act is on screen.
+  // ════════════════════════════════════════════════════════════
+  function drawBackground(tl, tintCol, tintK){
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, COL.bg2);
+    g.addColorStop(0.42, COL.bg);
+    g.addColorStop(1, COL.bg3);
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    // top tint wash from the lead gate
+    const rg = ctx.createRadialGradient(W*0.5, H*0.30, 60, W*0.5, H*0.30, 1100);
+    rg.addColorStop(0, rgba(tintCol, 0.10*tintK));
+    rg.addColorStop(1, rgba(tintCol, 0));
+    ctx.fillStyle = rg; ctx.fillRect(0,0,W,H);
+    // drifting motes (pure fn of tl)
+    for(const mt of MOTES){
+      const y = ((mt.y - tl*0.012*mt.sp) % H + H) % H;
+      const tw = 0.4 + 0.6*(0.5+0.5*Math.sin(tl*0.001*mt.sp + mt.ph));
+      ctx.fillStyle = rgba(COL.text2, 0.05*tw);
+      ctx.beginPath(); ctx.arc(mt.x, y, mt.r, 0, 7); ctx.fill();
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  ONE ACT PANEL — drawn into a translated layer (slide wipe).
+  //  dx = horizontal offset (px). alpha = panel opacity.
+  //  Everything inside is a pure fn of (act, localTime, tl).
+  // ════════════════════════════════════════════════════════════
+  function drawAct(act, t, tl, dx, alpha){
+    const m = act.m;
+    const cm = chartMin(act, t);
+    const price = act.priceAt(cm);
+    const o = act.oddsAt(cm);
+    const ml = mostLikely(o);
+
+    const xToPx = (mn)=> PLOT.x0 + dx + (clamp(mn, m.xMin, act.xEnd)-m.xMin)/(act.xEnd-m.xMin)*(PLOT.x1-PLOT.x0);
+    const yToPx = (p)=> map(clamp(p, act.yMin, act.yMax), act.yMin, act.yMax, PLOT.y1, PLOT.y0);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // ── plot panel backdrop (subtle framed surface) ──
+    const px0 = PLOT.x0+dx, px1 = PLOT.x1+dx;
+    const panelGrad = ctx.createLinearGradient(0,PLOT.y0,0,PLOT.y1);
+    panelGrad.addColorStop(0, rgba('#10151c', 0.55));
+    panelGrad.addColorStop(1, rgba('#0a0e13', 0.30));
+    ctx.fillStyle = panelGrad;
+    roundRect(px0-22, PLOT.y0-34, (px1-px0)+ (GATE_X-PLOT.x1) + 250, (PLOT.y1-PLOT.y0)+72, 18);
+    ctx.fill();
+    ctx.strokeStyle = rgba(COL.border, 0.6); ctx.lineWidth=1.4;
+    roundRect(px0-22, PLOT.y0-34, (px1-px0)+ (GATE_X-PLOT.x1) + 250, (PLOT.y1-PLOT.y0)+72, 18);
+    ctx.stroke();
+
+    // ── grid ──
+    ctx.lineWidth = 1;
+    for(let gy=Math.ceil(act.yMin); gy<=act.yMax; gy++){
+      if(gy % gridStep(act) !== 0) continue;
+      const y = yToPx(gy);
+      ctx.strokeStyle = rgba(COL.grid, 0.5);
+      ctx.beginPath(); ctx.moveTo(px0, y); ctx.lineTo(px1, y); ctx.stroke();
+      ctx.fillStyle = rgba(COL.muted, 0.6); ctx.font = fM(700,13); ctx.textAlign='right';
+      ctx.fillText('$'+gy, px0-12, y+4);
+    }
+    // vertical grid (every ~30 chart-min)
+    for(let gx=Math.ceil(m.xMin/30)*30; gx<=act.xEnd; gx+=30){
+      const x = xToPx(gx);
+      ctx.strokeStyle = rgba(COL.grid, 0.32);
+      ctx.beginPath(); ctx.moveTo(x, PLOT.y0); ctx.lineTo(x, PLOT.y1); ctx.stroke();
+    }
+
+    // ── KO baseline ──
+    const koY = yToPx(m.koPrice);
+    ctx.save();
+    ctx.setLineDash([5,8]); ctx.strokeStyle = rgba(COL.text2, 0.32); ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(px0, koY); ctx.lineTo(GATE_X+dx-10, koY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = rgba(COL.muted,0.85); ctx.font=fM(700,13); ctx.textAlign='left';
+    ctx.fillText('KO $'+m.koPrice.toFixed(2), px0+8, koY-9);
+    ctx.restore();
+
+    // ── gate gridlines (dashed, coloured) across plot ──
+    for(const g of act.gates){
+      const y = yToPx(g.price);
+      const isReal = (g.key===act.realized);
+      ctx.save();
+      ctx.setLineDash([2,9]);
+      ctx.strokeStyle = rgba(g.col, isReal?0.5:0.28);
+      ctx.lineWidth = isReal?2:1.3;
+      ctx.beginPath(); ctx.moveTo(px0, y); ctx.lineTo(GATE_X+dx-10, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ── x-axis sweep clip: only draw the price up to the live clock ──
+    const headX = xToPx(cm);
+    const headY = yToPx(price);
+
+    // build dense sample polyline up to head
+    const STEP = 0.5;
+    const pts = [];
+    for(let mn=m.xMin; mn<=cm+0.0001; mn+=STEP){ pts.push([xToPx(mn), yToPx(act.priceAt(mn))]); }
+    pts.push([headX, headY]);
+
+    if(pts.length>=2){
+      // area fill to KO baseline (lime above, crimson below — by head sign)
+      const up = price >= m.koPrice;
+      const fillTop = up ? COL.lime : COL.crimsonL;
+      const ag = ctx.createLinearGradient(0,PLOT.y0,0,PLOT.y1);
+      ag.addColorStop(0, rgba(fillTop, 0.18));
+      ag.addColorStop(1, rgba(fillTop, 0.0));
+      ctx.fillStyle = ag;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], koY);
+      for(const p of pts) ctx.lineTo(p[0], p[1]);
+      ctx.lineTo(pts[pts.length-1][0], koY);
+      ctx.closePath(); ctx.fill();
+
+      // PRICE LINE — drawn as TWO single passes (perf: ONE shadow pass total,
+      // never per-segment shadowBlur which is catastrophically slow in headless
+      // software-GL and was timing out screenshots). 1) full-path lime glow.
+      // 2) crisp top line, split into consistent-sign RUNS (lime up / crimson
+      // down) so colour meaning is kept with only a handful of strokes.
+      ctx.lineJoin='round'; ctx.lineCap='round';
+      // (1) single glow pass over the whole path
+      ctx.save();
+      ctx.shadowColor = rgba(COL.lime, 0.5); ctx.shadowBlur = 16;
+      ctx.strokeStyle = rgba(COL.lime, 0.30); ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+      ctx.restore();
+      // (2) crisp coloured runs (no shadow → cheap)
+      ctx.save();
+      ctx.lineWidth = 3.4;
+      let runSign = (pts[1][1] <= pts[0][1]); // true=up(lime)
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for(let i=1;i<pts.length;i++){
+        const sgn = (pts[i][1] <= pts[i-1][1]);
+        if(sgn!==runSign){
+          ctx.strokeStyle = rgba(runSign?COL.lime:COL.crimsonL, 0.97); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(pts[i-1][0], pts[i-1][1]);
+          runSign = sgn;
+        }
+        ctx.lineTo(pts[i][0], pts[i][1]);
+      }
+      ctx.strokeStyle = rgba(runSign?COL.lime:COL.crimsonL, 0.97); ctx.stroke();
+      ctx.restore();
+
+      // head dot
+      const headCol = up ? COL.limeL : COL.crimsonL;
+      ctx.save();
+      ctx.shadowColor = headCol; ctx.shadowBlur=22; ctx.fillStyle=headCol;
+      ctx.beginPath(); ctx.arc(headX, headY, 9, 0,7); ctx.fill();
+      ctx.shadowBlur=0; ctx.fillStyle = COL.bg;
+      ctx.beginPath(); ctx.arc(headX, headY, 3.4, 0,7); ctx.fill();
+      ctx.restore();
+
+      // NOW guide
+      ctx.save();
+      ctx.setLineDash([2,7]); ctx.strokeStyle=rgba(COL.text,0.4); ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(headX, PLOT.y0-8); ctx.lineTo(headX, PLOT.y1+6); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ── projection beam from head to the live most-likely gate ──
+    // (re-aims as odds shift; brightest toward the lead gate)
+    {
+      const g = act.gates.find(x=>x.key===ml);
+      const gx = GATE_X+dx-14, gy = yToPx(g.price);
+      const cx = lerp(headX, gx, 0.55), cy = lerp(headY, gy, 0.5);
+      ctx.save();
+      ctx.globalAlpha = alpha*0.9;
+      ctx.setLineDash([10,9]); ctx.lineDashOffset = -((tl*0.05)%1000);
+      ctx.strokeStyle = rgba(g.col, 0.85); ctx.lineWidth=2.6;
+      ctx.shadowColor = rgba(g.col,0.6); ctx.shadowBlur=12;
+      ctx.beginPath(); ctx.moveTo(headX, headY); ctx.quadraticCurveTo(cx,cy, gx,gy); ctx.stroke();
+      ctx.setLineDash([]);
+      // arrowhead
+      const ang = Math.atan2(gy-cy, gx-cx);
+      ctx.translate(gx,gy); ctx.rotate(ang); ctx.fillStyle=rgba(g.col,0.95);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-13,-6.5); ctx.lineTo(-13,6.5); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    // ── GATE BRACKETS (right column): target $ + decisive live % ──
+    drawGates(act, o, ml, yToPx, dx, cm, alpha);
+
+    // ── goal-event bursts at the head as the clock passes each goal ──
+    for(const ev of act.events){
+      const d = cm - ev.min;
+      if(d<0 || d>14) continue;
+      const gx = xToPx(ev.min), gy = yToPx(act.priceAt(ev.min));
+      const k = clamp(d/9, 0, 1);
+      const burst = E.out(clamp(d/2.0,0,1)) * clamp(1-(d-6)/8,0,1);
+      if(burst>0.02){
+        // radial spark ring
+        ctx.save();
+        ctx.globalAlpha = alpha*burst;
+        for(const sp of SPARKS){
+          const rr = lerp(ev.dir==='up'?14:14, 90, E.out(k)) * sp.sp;
+          const sx = gx + Math.cos(sp.ang)*rr;
+          const sy = gy + Math.sin(sp.ang)*rr - (ev.dir==='up'?rr*0.3:-rr*0.3);
+          ctx.fillStyle = rgba(ev.col, 0.8*(1-k));
+          ctx.beginPath(); ctx.arc(sx, sy, sp.size*(1-k*0.6), 0,7); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    // ── HEADER (per act): ticker + price (left), score + clock (right) ──
+    drawHeader(act, cm, price, o, dx, alpha, tl);
+
+    // ── SETTLE BEAT: once the clock is parked at full-time, stamp the
+    //    "SETTLES INTO [GATE]" callout over the realized gate band. ──
+    {
+      const settled = cm >= act.xEnd-0.5;
+      const tSettle = t - (ACT_MS - 1500);     // ms since settle began
+      if(settled && tSettle>0){
+        const g = act.gates.find(x=>x.key===act.realized);
+        const gy = yToPx(g.price);
+        const ap = E.out(clamp(tSettle/420,0,1)) * clamp(1-(tSettle-(ACT_MS-1500-200))/600, 0, 1);
+        if(ap>0.02){
+          ctx.save();
+          ctx.globalAlpha = alpha*ap;
+          // glow band on the realized gate
+          const bg = ctx.createLinearGradient(px0,0,GATE_X+dx,0);
+          bg.addColorStop(0, rgba(g.col,0));
+          bg.addColorStop(1, rgba(g.col,0.16));
+          ctx.fillStyle = bg; ctx.fillRect(px0, gy-22, (GATE_X+dx-10)-px0, 44);
+          // pill callout near head
+          const txt = 'SETTLES INTO '+act.settleLab;
+          ctx.font = fG(700,30); const tw = ctx.measureText(txt).width;
+          const note = act.settleNote;
+          ctx.font = fM(700,20); const nw = ctx.measureText(note).width;
+          const bw = Math.max(tw, nw) + 56;
+          const bx = clamp(headX - bw/2, px0+10, GATE_X+dx-bw-10);
+          const by = gy - 96;
+          ctx.fillStyle = rgba(COL.bg2, 0.92);
+          roundRect(bx, by, bw, 76, 12); ctx.fill();
+          ctx.strokeStyle = rgba(g.col, 0.8); ctx.lineWidth=2; roundRect(bx,by,bw,76,12); ctx.stroke();
+          ctx.textAlign='center';
+          ctx.fillStyle = g.col; ctx.font=fG(700,30);
+          ctx.shadowColor=rgba(g.col,0.6); ctx.shadowBlur=14;
+          ctx.fillText(txt, bx+bw/2, by+33);
+          ctx.shadowBlur=0;
+          ctx.fillStyle = COL.text; ctx.font=fM(700,20);
+          ctx.fillText(note, bx+bw/2, by+62);
+          ctx.restore();
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // grid spacing per act (price units between gridlines)
+  function gridStep(act){ return (act.yMax-act.yMin) > 18 ? 4 : 3; }
+
+  // ── GATE BRACKETS column ─────────────────────────────────────
+  function drawGates(act, o, ml, yToPx, dx, cm, alpha){
+    const x = GATE_X + dx;
+    for(const g of act.gates){
+      const y = yToPx(g.price);
+      const liveProb = (g.key==='win'?o.win:g.key==='draw'?o.draw:o.loss);
+      const isML = (g.key===ml);
+      const isReal = (g.key===act.realized);
+      const w = 250, hh = 64;
+      const bx = x, by = y - hh/2;
+      // bracket body
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const bodyA = isML?0.95:0.5;
+      ctx.fillStyle = rgba(COL.bg2, 0.78);
+      roundRect(bx, by, w, hh, 10); ctx.fill();
+      // left colour tab
+      ctx.fillStyle = rgba(g.col, isML?1:0.6);
+      roundRect(bx, by, 6, hh, 3); ctx.fill();
+      // border
+      ctx.strokeStyle = rgba(g.col, isML?0.95:0.4); ctx.lineWidth = isML?2.2:1.4;
+      if(isML){ ctx.shadowColor=rgba(g.col,0.5); ctx.shadowBlur=16; }
+      roundRect(bx, by, w, hh, 10); ctx.stroke();
+      ctx.shadowBlur=0;
+      // label + target price
+      ctx.textAlign='left';
+      ctx.fillStyle = rgba(g.col, bodyA); ctx.font=fG(700,21);
+      ctx.fillText(g.label, bx+22, by+27);
+      ctx.fillStyle = rgba(COL.text, isML?0.95:0.6); ctx.font=fM(700,24);
+      ctx.fillText('$'+g.price.toFixed(2), bx+22, by+52);
+      // live % (right aligned, big)
+      ctx.textAlign='right';
+      ctx.fillStyle = rgba(g.col, isML?1:0.55); ctx.font=fM(700,32);
+      ctx.fillText(Math.round(liveProb)+'%', bx+w-18, by+44);
+      // connector tick from plot to bracket
+      ctx.strokeStyle = rgba(g.col, isML?0.7:0.3); ctx.lineWidth=isML?2:1.2;
+      ctx.beginPath(); ctx.moveTo(bx-10, y); ctx.lineTo(bx, y); ctx.stroke();
+      ctx.fillStyle = rgba(g.col, isML?0.9:0.4);
+      ctx.beginPath(); ctx.arc(bx-10, y, isML?4:2.6, 0,7); ctx.fill();
+      ctx.restore();
+    }
+    // column header
+    ctx.save();
+    ctx.globalAlpha = alpha*0.8;
+    ctx.fillStyle = rgba(COL.text2,0.9); ctx.font=fM(700,14); ctx.textAlign='left';
+    ctx.fillText('OUTCOME GATES · TARGET $ · LIVE %', x, PLOT.y0-14);
+    ctx.restore();
+  }
+
+  // ── HEADER (ticker/price left, scoreboard/clock right) ───────
+  function drawHeader(act, cm, price, o, dx, alpha, tl){
+    const m = act.m;
+    const [sh,sa] = scoreAt(m, cm);
+    const dispMin = Math.round(act.clock(cm));
+    const settled = cm >= act.xEnd-0.5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // act index chip (top-left, above ticker)
+    const idx = ACTS.indexOf(act)+1;
+    ctx.fillStyle = rgba(COL.text2,0.7); ctx.font=fM(700,15); ctx.textAlign='left';
+    ctx.fillText('MATCH '+idx+' / 3', 152+dx, 92);
+
+    // league
+    ctx.fillStyle = rgba(COL.text2,0.85); ctx.font=fM(400,15);
+    ctx.fillText(m.league.toUpperCase(), 152+dx, 118);
+
+    // ticker
+    ctx.fillStyle = COL.lime; ctx.font=fM(700,20);
+    ctx.fillText(m.ticker, 152+dx, 162);
+
+    // big price
+    const up = price >= m.koPrice;
+    ctx.fillStyle = '#fff'; ctx.font=fM(700,76);
+    ctx.shadowColor = rgba(COL.lime, up?0.30:0.0); ctx.shadowBlur = up?28:0;
+    ctx.fillStyle = COL.text2; ctx.font=fM(700,34); ctx.fillText('$', 152+dx, 232);
+    ctx.fillStyle = '#fff'; ctx.font=fM(700,76);
+    ctx.fillText(price.toFixed(2), 182+dx, 240);
+    ctx.shadowBlur=0;
+
+    // delta chip
+    const dv = price - m.koPrice;
+    const chipCol = up?COL.limeL:COL.crimsonL;
+    const chipBg = up?rgba(COL.lime,0.16):rgba(COL.crimson,0.20);
+    const txt = (up?'▲ +':'▼ −')+Math.abs(dv).toFixed(2)+'  ('+(up?'+':'−')+(Math.abs(dv)/m.koPrice*100).toFixed(2)+'%)';
+    ctx.font=fM(700,22); const tw = ctx.measureText(txt).width;
+    ctx.fillStyle = chipBg; roundRect(152+dx, 262, tw+28, 38, 8); ctx.fill();
+    ctx.fillStyle = chipCol; ctx.textAlign='left'; ctx.fillText(txt, 166+dx, 287);
+
+    // ── right: subject vs opponent scoreboard ──
+    const rx = 1456+dx+250;     // right edge anchor (align to gate column right)
+    ctx.textAlign='right';
+    ctx.fillStyle = rgba(COL.crimsonL,0.95); ctx.font=fM(700,15);
+    // LIVE dot + label
+    const pulse = 0.45 + 0.55*Math.abs(Math.sin(tl*0.004));
+    ctx.fillStyle = rgba(COL.crimsonL, settled?0.4:pulse);
+    ctx.beginPath(); ctx.arc(rx-150, 86, 6, 0,7); ctx.fill();
+    ctx.fillStyle = rgba(COL.crimsonL,0.95); ctx.font=fM(700,15); ctx.textAlign='left';
+    ctx.fillText(settled?'FULL TIME':'LIVE', rx-138, 91);
+    // clock
+    ctx.textAlign='right'; ctx.fillStyle=COL.text; ctx.font=fM(700,28);
+    ctx.fillText(settled?'FT':(dispMin+"′"), rx, 92);
+
+    // teams + score
+    ctx.font=fG(600,26);
+    ctx.fillStyle = sh>sa?COL.lime:COL.text;
+    ctx.textAlign='right';
+    const scoreStr = sh+'  –  '+sa;
+    ctx.font=fM(700,46);
+    const sw = ctx.measureText(scoreStr).width;
+    // center score, team names flanking
+    const scoreX = rx;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(scoreStr, scoreX, 152);
+    ctx.font=fG(600,24); ctx.fillStyle=COL.text2; ctx.textAlign='right';
+    ctx.fillText(m.subject, scoreX - sw - 24, 150);
+    ctx.textAlign='left';
+    ctx.fillText(m.opponent, scoreX + 14, 150);
+
+    // sub-strap (act narrative) under the score, right aligned
+    ctx.textAlign='right'; ctx.fillStyle=rgba(COL.text2,0.9); ctx.font=fM(400,16);
+    ctx.fillText(act.sub, rx, 196);
+
+    ctx.restore();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  OUTRO — unifying brand beat. Logo, the two-line message, the
+  //  three settled tickers + projection-accuracy proof line.
+  // ════════════════════════════════════════════════════════════
+  // pre-measure the three settle proofs
+  const PROOF = ACTS.map(a=>({
+    ticker:a.m.ticker, lab:a.settleLab, col:a.gates.find(g=>g.key===a.realized).col,
+    settle:a.m.settle, gate:a.m.gates[a.realized].price,
+    diff: Math.abs(a.m.settle - a.m.gates[a.realized].price),
+  }));
+
+  function drawOutro(t, tl, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const dur = OUT_MS;
+    const k = clamp(t/dur, 0, 1);
+
+    // NOTE: outro elements DO NOT self-fade at the tail — the act1 wipe-in
+    // (handled by the compositor) covers the outro at the seam, so it holds
+    // fully visible until then (no black gap, seamless loop).
+
+    // central pulse ring behind logo
+    const cx=W/2, cy=H*0.285;
+    const pr = 140 + 26*Math.sin(tl*0.0016);
+    const rg = ctx.createRadialGradient(cx,cy,20, cx,cy,pr*2.2);
+    rg.addColorStop(0, rgba(COL.lime, 0.12));
+    rg.addColorStop(1, rgba(COL.lime, 0));
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+
+    // brand mark (TAIL glyph) above the headline
+    const ag = E.out(clamp(t/420,0,1));
+    drawBrandGlyph(cx, cy-150, 92, COL.lime, alpha*ag);
+
+    // headline 1 — "EVERY MATCH. ONE ORACLE."
+    const a1 = E.out(clamp((t-150)/520,0,1));
+    if(a1>0.01){
+      ctx.globalAlpha = alpha*a1;
+      ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font=fG(700,82);
+      ctx.shadowColor=rgba(COL.lime,0.22); ctx.shadowBlur=30;
+      ctx.fillText('EVERY MATCH.', cx, cy+18);
+      ctx.fillStyle=COL.lime;
+      ctx.fillText('ONE ORACLE.', cx, cy+114);
+      ctx.shadowBlur=0;
+      ctx.globalAlpha = alpha;
+    }
+    // headline 2 — "THE PRICE RESOLVES INTO THE GATE."
+    const a2 = E.out(clamp((t-560)/520,0,1));
+    if(a2>0.01){
+      ctx.save();
+      ctx.globalAlpha = alpha*a2;
+      ctx.textAlign='center'; ctx.fillStyle=COL.text2; ctx.font=fM(400,26);
+      ctx.fillText('THE PRICE RESOLVES INTO THE GATE.', cx, cy+182);
+      ctx.restore();
+    }
+
+    // three settled tickers (proof cards) — stagger in
+    const cardW=470, gap=40, totalW=cardW*3+gap*2;
+    const startX = cx - totalW/2;
+    const cardY = H*0.595;
+    for(let i=0;i<PROOF.length;i++){
+      const p = PROOF[i];
+      const ca = E.out(clamp((t-820 - i*180)/520,0,1));
+      if(ca<=0.01) continue;
+      ctx.save();
+      ctx.globalAlpha = alpha*ca;
+      const bx = startX + i*(cardW+gap);
+      const slideY = lerp(28,0,E.out(clamp((t-820 - i*180)/520,0,1)));
+      ctx.translate(0, slideY);
+      // card
+      ctx.fillStyle = rgba(COL.bg2,0.9);
+      roundRect(bx, cardY, cardW, 150, 14); ctx.fill();
+      ctx.strokeStyle = rgba(p.col,0.8); ctx.lineWidth=2;
+      ctx.shadowColor=rgba(p.col,0.4); ctx.shadowBlur=16;
+      roundRect(bx, cardY, cardW, 150, 14); ctx.stroke();
+      ctx.shadowBlur=0;
+      // colour tab
+      ctx.fillStyle=rgba(p.col,0.9); roundRect(bx,cardY,7,150,3); ctx.fill();
+      // ticker + outcome
+      ctx.textAlign='left'; ctx.fillStyle=COL.text2; ctx.font=fM(700,18);
+      ctx.fillText(p.ticker, bx+30, cardY+38);
+      ctx.fillStyle=p.col; ctx.font=fG(700,26); ctx.textAlign='right';
+      ctx.fillText('SETTLED · '+p.lab, bx+cardW-26, cardY+38);
+      // settle price big
+      ctx.textAlign='left'; ctx.fillStyle='#fff'; ctx.font=fM(700,46);
+      ctx.fillText('$'+p.settle.toFixed(2), bx+30, cardY+92);
+      // projection line
+      ctx.fillStyle=rgba(COL.text2,0.9); ctx.font=fM(400,16); ctx.textAlign='right';
+      ctx.fillText('PROJ $'+p.gate.toFixed(2), bx+cardW-26, cardY+78);
+      const diffCol = p.diff<=0.45 ? COL.lime : COL.amber;
+      ctx.fillStyle=diffCol; ctx.font=fM(700,18);
+      ctx.fillText((p.diff<=0.45?'±':'±')+'$'+p.diff.toFixed(2), bx+cardW-26, cardY+104);
+      ctx.restore();
+    }
+
+    // proof strap — accuracy band the data supports (forest $0.01 … everton $0.44)
+    const a3 = E.out(clamp((t-1500)/520,0,1));
+    if(a3>0.01){
+      ctx.save();
+      ctx.globalAlpha = alpha*a3;
+      ctx.textAlign='center';
+      ctx.fillStyle=COL.lime; ctx.font=fM(700,22);
+      ctx.shadowColor=rgba(COL.lime,0.4); ctx.shadowBlur=12;
+      ctx.fillText('THREE MATCHES · EACH RESOLVED INTO ITS OUTCOME GATE — WIN $0.01 · DRAW $0.44 OFF PROJECTION', cx, H*0.86);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // logo lockup drawn (vector) at outro top — we reuse the DOM watermark; for the
+  // big centred mark we render TAIL.MARK via an offscreen path is overkill, so we
+  // draw a glyph using two strokes that echo the brand mark proportions.
+  function drawBrandGlyph(cx, cy, s, col, a){
+    // simplified two-sparkle mark (matches TAIL.MARK silhouette)
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = col; ctx.lineWidth = s*0.07; ctx.lineCap='round';
+    // big sparkle
+    const spark=(ox,oy,r)=>{
+      ctx.beginPath();
+      ctx.moveTo(ox, oy-r); ctx.quadraticCurveTo(ox+r*0.18,oy-r*0.18, ox+r,oy);
+      ctx.quadraticCurveTo(ox+r*0.18,oy+r*0.18, ox,oy+r);
+      ctx.quadraticCurveTo(ox-r*0.18,oy+r*0.18, ox-r,oy);
+      ctx.quadraticCurveTo(ox-r*0.18,oy-r*0.18, ox,oy-r);
+      ctx.stroke();
+    };
+    spark(cx+s*0.16, cy, s*0.42);
+    spark(cx-s*0.16, cy, s*0.30);
+    ctx.restore();
+  }
+
+  // ── rounded rect helper ──
+  function roundRect(x,y,w,h,r){
+    r = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y, x+w,y+h, r);
+    ctx.arcTo(x+w,y+h, x,y+h, r);
+    ctx.arcTo(x,y+h, x,y, r);
+    ctx.arcTo(x,y, x+w,y, r);
+    ctx.closePath();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  MAIN RENDER — pure function of tl. Decides which scene(s) are
+  //  on screen, computes slide-wipe offsets, composites them.
+  // ════════════════════════════════════════════════════════════
+  // Determine the lead-gate tint for the background, given a scene index + local t
+  function leadTint(i, t){
+    if(i>=3) return { col:COL.lime, k:1 };          // outro
+    const act = ACTS[i];
+    const cm = chartMin(act, t);
+    const o = act.oddsAt(cm);
+    return { col: GATECOL[mostLikely(o)], k:1 };
+  }
+
+  // local time within scene i (handles outro)
+  function sceneLocal(tl, i){ return (i<3) ? (tl - S[i]) : (tl - S[3]); }
+
+  TAIL.loop((tl)=>{
+    // SEAMLESS COMPOSITING — transitions live at the END of each scene: the NEXT
+    // scene wipes IN over the current (fully-opaque) scene during its last TRANS
+    // ms. So the active scene is ALWAYS fully painted (never a black/blank frame),
+    // and the loop seam (outro → act1) cross-dissolves with content present the
+    // whole time. At tl=0 the wipe has completed → act1 is the fully-opaque base.
+
+    // current scene index (the BASE layer)
+    let sceneI = 0;
+    for(let i=0;i<4;i++){ if(tl >= S[i] && (i===3 || tl < S[i+1])) { sceneI = i; break; } }
+    const t = sceneLocal(tl, sceneI);
+    const dur = SCENE_DUR[sceneI];
+
+    // is the NEXT scene wiping in over us? (last TRANS ms of this scene)
+    const tIntoTrans = t - (dur - TRANS);             // >0 during outgoing wipe
+    const wiping = tIntoTrans > 0;
+    const wK = wiping ? clamp(tIntoTrans/TRANS, 0, 1) : 0;   // 0..1
+    const wE = E.inOut(wK);
+
+    const nextI = (sceneI+1)%4;
+    const nextT = wiping ? (tIntoTrans) : 0;          // next scene's local time during wipe
+
+    // ── background tint: blend current lead → next lead across the wipe ──
+    const lt = leadTint(sceneI, t);
+    const ltNext = leadTint(nextI, nextT);
+    const tintArr = wiping ? lerpColArr(lt.col, ltNext.col, wE) : (lt.col[0]==='#'?hexToRgb(lt.col):lt.col);
+    drawBackground(tl, tintArr, 1);
+
+    // ── BASE: current scene, fully opaque, slides slightly LEFT as next wipes in ──
+    const SLIDE = W*0.16;
+    const baseDx = wiping ? lerp(0, -SLIDE*0.6, wE) : 0;
+    drawSceneByIndex(sceneI, t, tl, baseDx, wiping ? (1-0.35*wE) : 1);
+
+    // ── INCOMING: next scene slides in from the right, ramping to full ──
+    if(wiping){
+      const inDx = lerp(SLIDE, 0, wE);
+      drawSceneByIndex(nextI, nextT, tl, inDx, wE);
+    }
+
+    // progress rail (3 act ticks + outro) at very bottom — pure fn of tl
+    drawProgress(tl, sceneI);
+  });
+
+  // helper: draw any scene by index with offset+alpha
+  function drawSceneByIndex(i, t, tl, dx, alpha){
+    if(alpha<=0.001) return;
+    if(i<3) drawAct(ACTS[i], t, tl, dx, alpha);
+    else    { ctx.save(); ctx.translate(dx,0); drawOutro(t, tl, alpha); ctx.restore(); }
+  }
+
+  // colour-array helpers for tint blending
+  function lerpColArr(c1,c2,t){ const a=(c1[0]==='#')?hexToRgb(c1):c1, b=(c2[0]==='#')?hexToRgb(c2):c2;
+    return [lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)]; }
+  function tintColStr(c){ return (c[0]==='#')?c:[c[0],c[1],c[2]]; }
+
+  // bottom progress rail
+  function drawProgress(tl, sceneI){
+    const y = H-30, x0=W*0.5-330, x1=W*0.5+330;
+    const segs = [
+      {a:0, b:ACT_MS, col:ACTS[0].gates.find(g=>g.key==='win').col},
+      {a:ACT_MS, b:ACT_MS*2, col:ACTS[1].gates.find(g=>g.key==='loss').col},
+      {a:ACT_MS*2, b:ACT_MS*3, col:ACTS[2].gates.find(g=>g.key==='draw').col},
+      {a:ACT_MS*3, b:LOOP, col:COL.lime},
+    ];
+    const tot = LOOP;
+    ctx.save();
+    for(const s of segs){
+      const sx = lerp(x0,x1, s.a/tot), ex = lerp(x0,x1, s.b/tot);
+      ctx.strokeStyle = rgba(COL.border, 0.8); ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(sx+4, y); ctx.lineTo(ex-4, y); ctx.stroke();
+      // filled portion
+      const fillTo = clamp((tl - s.a)/(s.b-s.a), 0, 1);
+      if(fillTo>0){
+        ctx.strokeStyle = rgba(s.col, 0.95); ctx.lineWidth=3;
+        ctx.shadowColor=rgba(s.col,0.5); ctx.shadowBlur=8;
+        ctx.beginPath(); ctx.moveTo(sx+4, y); ctx.lineTo(lerp(sx+4,ex-4,fillTo), y); ctx.stroke();
+        ctx.shadowBlur=0;
+      }
+    }
+    ctx.restore();
+  }
+
+  TAIL.ready();
+})();
+</script>
+</body>
+</html>

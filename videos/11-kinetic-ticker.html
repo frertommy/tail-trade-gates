@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Kinetic Ticker · FRST-PERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video (1920×1080, no audio)
+     Variant 11 · KINETIC TICKER · brutalist / type-driven
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --amber:#fbbf24; --amber-l:#fcd34d; --amber-d:#d99e10;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --ease-trail:cubic-bezier(.25,.1,.25,1);
+    --ease-3d:cubic-bezier(.6,.05,.2,.95);
+    --ease-bounce:cubic-bezier(.34,1.56,.4,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:var(--bg);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.04; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(135% 130% at 50% 44%, transparent 50%, rgba(0,0,0,.66) 100%); }
+
+  .wm{ position:absolute; left:84px; bottom:60px; z-index:80; color:#fff; opacity:.82; display:flex; align-items:center; gap:16px; }
+  .wm .mark{ height:30px; width:auto; display:block; }
+  .wm .mark svg{ height:30px; width:auto; display:block; }
+  .wm .tagline{ font-family:var(--mono); font-size:12px; letter-spacing:.36em; color:var(--text-2); text-transform:uppercase; }
+
+  /* ===== SCENE STYLES ===== */
+  #sceneFade{ position:absolute; inset:0; z-index:10; will-change:opacity; }
+
+  /* faint brutalist rule grid in the deep background */
+  .rules{ position:absolute; inset:0; z-index:6; pointer-events:none; opacity:.5; }
+  .rules .h{ position:absolute; left:0; right:0; height:1px; background:rgba(42,48,56,.42); }
+  .rules .v{ position:absolute; top:0; bottom:0; width:1px; background:rgba(42,48,56,.30); }
+
+  /* ── top header band ─────────────────────────────────── */
+  .hdr{ position:absolute; left:84px; right:84px; top:60px; z-index:40;
+    display:flex; align-items:flex-start; justify-content:space-between; }
+  .hdr .left{ display:flex; flex-direction:column; gap:9px; }
+  .hdr .league{ font-family:var(--mono); font-size:14px; letter-spacing:.32em; color:var(--text-2); text-transform:uppercase; }
+  .hdr .tk{ display:flex; align-items:baseline; gap:16px; }
+  .hdr .ticker{ font-family:var(--mono); font-weight:700; font-size:34px; letter-spacing:.04em; color:var(--text); }
+  .hdr .perp{ font-family:var(--font); font-weight:600; font-size:13px; letter-spacing:.30em; color:var(--lime);
+    padding:4px 10px; border:1px solid rgba(178,237,104,.45); border-radius:4px; text-transform:uppercase; }
+
+  /* clock + score, right side of header */
+  .hdr .right{ display:flex; flex-direction:column; align-items:flex-end; gap:11px; }
+  .clockline{ display:flex; align-items:center; gap:14px; }
+  .clockline .dot{ width:10px; height:10px; border-radius:50%; background:var(--crimson-l); box-shadow:0 0 12px var(--crimson-l); }
+  .clockline .clk{ font-family:var(--mono); font-weight:700; font-size:30px; letter-spacing:.06em; color:var(--text); font-variant-numeric:tabular-nums; min-width:108px; text-align:right; }
+  .clockline .live{ font-family:var(--mono); font-size:12px; letter-spacing:.30em; color:var(--text-2); }
+  .scoreline{ display:flex; align-items:center; gap:16px; }
+  .scoreline .tm{ font-family:var(--font); font-weight:600; font-size:18px; letter-spacing:.08em; color:var(--text-2); }
+  .scoreline .tm.home{ color:var(--text); }
+  .scoreline .sc{ font-family:var(--mono); font-weight:700; font-size:24px; color:var(--text); font-variant-numeric:tabular-nums;
+    min-width:64px; text-align:center; will-change:transform,color; }
+
+  /* ── HERO PRICE (center stage) ───────────────────────── */
+  .hero{ position:absolute; left:0; right:0; top:330px; z-index:30;
+    display:flex; flex-direction:column; align-items:center; }
+  .hero .caplabel{ font-family:var(--font); font-weight:500; font-size:15px; letter-spacing:.42em; text-transform:uppercase;
+    color:var(--text-2); margin-bottom:18px; }
+  /* the reel row */
+  .price{ display:flex; align-items:flex-start; justify-content:center; will-change:transform,filter;
+    font-family:var(--mono); font-weight:700; line-height:1; }
+  .price .dollar{ font-size:120px; color:var(--text-2); margin-right:6px; transform:translateY(14px); }
+  /* each digit slot is a fixed-height window with a vertical strip inside */
+  .reel{ position:relative; overflow:hidden; width:88px; height:170px; }
+  .reel .strip{ position:absolute; left:0; top:0; width:100%; will-change:transform; }
+  .reel .strip span{ display:block; height:170px; width:100%; text-align:center; font-size:170px; color:var(--text); font-variant-numeric:tabular-nums; }
+  .reel.small{ width:88px; height:170px; }
+  .price .dot{ font-size:120px; color:var(--text); width:42px; text-align:center; transform:translateY(14px); }
+  /* sub-kicker under the price */
+  .hero .subline{ display:flex; align-items:center; gap:22px; margin-top:24px; height:40px; }
+  .hero .delta{ font-family:var(--mono); font-weight:700; font-size:30px; font-variant-numeric:tabular-nums; letter-spacing:.02em; }
+  .hero .vs{ font-family:var(--font); font-weight:500; font-size:18px; letter-spacing:.10em; color:var(--muted); }
+
+  /* ── GATE CHIP RAIL (bottom) ─────────────────────────── */
+  .gates{ position:absolute; left:84px; right:84px; bottom:150px; z-index:35;
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:34px; }
+  .gate{ position:relative; padding:22px 26px 20px; border-radius:var(--r-lg);
+    background:rgba(13,16,20,.72); border:1px solid var(--border);
+    will-change:transform,opacity,border-color; overflow:hidden; }
+  .gate::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:5px; }
+  .gate .toprow{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px; }
+  .gate .glyph{ font-family:var(--font); font-weight:700; font-size:22px; letter-spacing:.20em; }
+  .gate .price-g{ font-family:var(--mono); font-weight:700; font-size:30px; color:var(--text); font-variant-numeric:tabular-nums; }
+  /* live % bar */
+  .gate .bar{ position:relative; height:14px; border-radius:7px; background:rgba(255,255,255,.06); overflow:hidden; }
+  .gate .fill{ position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:7px; will-change:width; }
+  .gate .pctrow{ display:flex; align-items:baseline; justify-content:space-between; margin-top:11px; }
+  .gate .lab2{ font-family:var(--font); font-weight:500; font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--muted); }
+  .gate .pct{ font-family:var(--mono); font-weight:700; font-size:24px; font-variant-numeric:tabular-nums; }
+
+  .gate.win::before{ background:var(--lime); box-shadow:0 0 16px var(--lime); }
+  .gate.win .glyph,.gate.win .pct{ color:var(--lime); } .gate.win .fill{ background:linear-gradient(90deg,var(--lime-d),var(--lime)); box-shadow:0 0 14px rgba(178,237,104,.5); }
+  .gate.draw::before{ background:var(--amber); box-shadow:0 0 16px var(--amber); }
+  .gate.draw .glyph,.gate.draw .pct{ color:var(--amber); } .gate.draw .fill{ background:linear-gradient(90deg,var(--amber-d),var(--amber)); box-shadow:0 0 14px rgba(251,191,36,.4); }
+  .gate.loss::before{ background:var(--crimson-l); box-shadow:0 0 16px var(--crimson-l); }
+  .gate.loss .glyph,.gate.loss .pct{ color:var(--crimson-l); } .gate.loss .fill{ background:linear-gradient(90deg,var(--crimson-d),var(--crimson-l)); box-shadow:0 0 14px rgba(212,19,90,.4); }
+
+  /* ── GOAL slam (full-frame word) ─────────────────────── */
+  .goalwrap{ position:absolute; inset:0; z-index:60; display:grid; place-items:center; pointer-events:none; }
+  .goalword{ font-family:var(--font); font-weight:700; font-size:440px; line-height:.86; letter-spacing:-.02em;
+    color:var(--lime); opacity:0; will-change:transform,opacity;
+    text-shadow:0 0 80px rgba(178,237,104,.55), 0 0 200px rgba(178,237,104,.30); -webkit-text-stroke:2px rgba(178,237,104,.0); }
+  .goalsub{ position:absolute; z-index:61; left:0; right:0; text-align:center; bottom:340px;
+    font-family:var(--mono); font-weight:700; font-size:34px; letter-spacing:.10em; color:#fff; opacity:0; will-change:opacity,transform; }
+
+  /* GOAL flash wash behind the word */
+  .goalwash{ position:absolute; inset:0; z-index:55; pointer-events:none; opacity:0; will-change:opacity;
+    background:radial-gradient(60% 50% at 50% 46%, rgba(178,237,104,.20), rgba(178,237,104,0) 70%); }
+
+  /* ── SETTLED stamp ───────────────────────────────────── */
+  .settle{ position:absolute; left:0; right:0; z-index:50; top:330px; text-align:center; opacity:0; pointer-events:none; will-change:opacity,transform; }
+  .settle .tag{ font-family:var(--font); font-weight:600; font-size:17px; letter-spacing:.40em; text-transform:uppercase; color:var(--lime); }
+  /* precision kicker — floats just BELOW the hero number's delta line */
+  .misskick{ position:absolute; left:0; right:0; z-index:50; top:582px; text-align:center; opacity:0; pointer-events:none; will-change:opacity;
+    font-family:var(--mono); font-weight:700; font-size:16px; letter-spacing:.10em; color:var(--text-2); font-variant-numeric:tabular-nums; }
+  .misskick b{ color:var(--lime-l); font-weight:700; }
+
+  /* head ticker strip at very top edge (scarce ambient motion) */
+  .toprail{ position:absolute; left:0; right:0; top:0; height:3px; z-index:42; overflow:hidden; opacity:.8; }
+  .toprail .seg{ position:absolute; top:0; height:3px; }
+</style>
+</head>
+<body data-loop-ms="15000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <!-- ============================================================
+           SCENE — Variant 11: KINETIC TICKER · FRST-PERP (forest)
+           Everything that animates lives in #sceneFade so the whole
+           scene fades to black together at the loop seam.
+           ============================================================ -->
+      <div id="sceneFade">
+
+        <!-- deep background brutalist rules -->
+        <div class="rules" id="rules"></div>
+
+        <!-- top progress rail -->
+        <div class="toprail"><div class="seg" id="railSeg"></div></div>
+
+        <!-- header -->
+        <div class="hdr">
+          <div class="left">
+            <div class="league" id="league">EUROPA LEAGUE · APR 30</div>
+            <div class="tk">
+              <div class="ticker" id="ticker">FRST-PERP</div>
+              <div class="perp">PERP</div>
+            </div>
+          </div>
+          <div class="right">
+            <div class="clockline">
+              <span class="dot"></span>
+              <span class="clk" id="clk">0'</span>
+              <span class="live">LIVE</span>
+            </div>
+            <div class="scoreline">
+              <span class="tm home" id="teamH">FOREST</span>
+              <span class="sc" id="score">0–0</span>
+              <span class="tm" id="teamA">ASTON VILLA</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- HERO price reels -->
+        <div class="hero" id="hero">
+          <div class="caplabel" id="caplabel">MARK&nbsp;PRICE</div>
+          <div class="price" id="price">
+            <span class="dollar">$</span>
+            <!-- 3 integer slots (hundreds,tens,units) . 2 decimal slots -->
+            <div class="reel" data-slot="h"><div class="strip"></div></div>
+            <div class="reel" data-slot="t"><div class="strip"></div></div>
+            <div class="reel" data-slot="u"><div class="strip"></div></div>
+            <span class="dot">.</span>
+            <div class="reel" data-slot="d1"><div class="strip"></div></div>
+            <div class="reel" data-slot="d2"><div class="strip"></div></div>
+          </div>
+          <div class="subline">
+            <span class="vs" id="vs">FOREST&nbsp;vs&nbsp;ASTON&nbsp;VILLA</span>
+            <span class="delta" id="delta">+0.00%</span>
+          </div>
+        </div>
+
+        <!-- SETTLED stamp (sits in place of caplabel after settle) -->
+        <div class="settle" id="settle">
+          <div class="tag" id="settleTag">SETTLED&nbsp;·&nbsp;WIN&nbsp;·&nbsp;$123.46</div>
+        </div>
+        <!-- precision kicker under the hero number -->
+        <div class="misskick" id="missKick">PROJECTION&nbsp;$123.47&nbsp;·&nbsp;MISS&nbsp;<b>$0.01</b></div>
+
+        <!-- GATE rail -->
+        <div class="gates" id="gates">
+          <div class="gate win" id="gWin">
+            <div class="toprow"><span class="glyph">WIN</span><span class="price-g">$123.47</span></div>
+            <div class="bar"><div class="fill" id="fWin"></div></div>
+            <div class="pctrow"><span class="lab2">PROJECTED</span><span class="pct" id="pWin">32%</span></div>
+          </div>
+          <div class="gate draw" id="gDraw">
+            <div class="toprow"><span class="glyph">DRAW</span><span class="price-g">$118.31</span></div>
+            <div class="bar"><div class="fill" id="fDraw"></div></div>
+            <div class="pctrow"><span class="lab2">PROJECTED</span><span class="pct" id="pDraw">30%</span></div>
+          </div>
+          <div class="gate loss" id="gLoss">
+            <div class="toprow"><span class="glyph">LOSE</span><span class="price-g">$113.30</span></div>
+            <div class="bar"><div class="fill" id="fLoss"></div></div>
+            <div class="pctrow"><span class="lab2">PROJECTED</span><span class="pct" id="pLoss">38%</span></div>
+          </div>
+        </div>
+
+        <!-- GOAL slam -->
+        <div class="goalwash" id="goalWash"></div>
+        <div class="goalwrap"><div class="goalword" id="goalWord">GOAL</div></div>
+        <div class="goalsub" id="goalSub">89'&nbsp;FOREST&nbsp;1–0&nbsp;·&nbsp;WIN&nbsp;23%&nbsp;→&nbsp;74%</div>
+
+      </div><!-- /#sceneFade -->
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+      <div class="wm"><span class="mark" id="wmMark"></span><span class="tagline">THE&nbsp;FIRST&nbsp;PERP&nbsp;FOR&nbsp;SPORTS</span></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 11: KINETIC TICKER (match: forest)
+   ============================================================ */
+(function(){
+  const M  = window.MATCHES.forest;
+  const priceAt = (min)=>window.MATCHES_priceAt(M, min);
+  const oddsAt  = (min)=>window.MATCHES_oddsAt(M, min);
+  const clamp = TAIL.clamp, lerp = TAIL.lerp, E = TAIL.E;
+  const ss = (a,b,t)=> clamp((t-a)/(b-a),0,1);   // smoothstep window 0..1
+
+  // ---- static text ----
+  document.getElementById('wmMark').innerHTML = TAIL.MARK;
+  document.getElementById('league').textContent = M.league.toUpperCase();
+  document.getElementById('ticker').textContent = M.ticker;
+  document.getElementById('teamH').textContent = M.subject;
+  document.getElementById('teamA').textContent = M.opponent;
+  document.getElementById('vs').innerHTML = M.subject + '&nbsp;vs&nbsp;' + M.opponent;
+  document.getElementById('settleTag').innerHTML =
+    'SETTLED&nbsp;·&nbsp;WIN&nbsp;·&nbsp;$' + M.settle.toFixed(2);
+  // precision kicker: projection (WIN gate) vs realized settle = the $0.01 miss
+  const MISS = Math.abs(M.gates.win.price - M.settle);
+  document.getElementById('missKick').innerHTML =
+    'PROJECTION&nbsp;$' + M.gates.win.price.toFixed(2) + '&nbsp;·&nbsp;MISS&nbsp;<b>$' + MISS.toFixed(2) + '</b>';
+
+  // ---- background brutalist rules (built once, static) ----
+  (function buildRules(){
+    const r = document.getElementById('rules');
+    let html = '';
+    for (let y=180; y<=900; y+=120) html += `<div class="h" style="top:${y}px"></div>`;
+    for (const x of [84, 1920/3|0, (1920*2/3)|0, 1920-84]) html += `<div class="v" style="left:${x}px"></div>`;
+    r.innerHTML = html;
+  })();
+
+  // ---- DOM refs ----
+  const el = {
+    sceneFade:document.getElementById('sceneFade'),
+    railSeg:document.getElementById('railSeg'),
+    clk:document.getElementById('clk'),
+    score:document.getElementById('score'),
+    hero:document.getElementById('hero'),
+    price:document.getElementById('price'),
+    caplabel:document.getElementById('caplabel'),
+    delta:document.getElementById('delta'),
+    fWin:document.getElementById('fWin'), fDraw:document.getElementById('fDraw'), fLoss:document.getElementById('fLoss'),
+    pWin:document.getElementById('pWin'), pDraw:document.getElementById('pDraw'), pLoss:document.getElementById('pLoss'),
+    gWin:document.getElementById('gWin'), gDraw:document.getElementById('gDraw'), gLoss:document.getElementById('gLoss'),
+    settle:document.getElementById('settle'),
+    missKick:document.getElementById('missKick'),
+    vs:document.getElementById('vs'),
+    goalWord:document.getElementById('goalWord'),
+    goalSub:document.getElementById('goalSub'),
+    goalWash:document.getElementById('goalWash'),
+  };
+
+  // ---- DIGIT REELS ----------------------------------------------------------
+  // Each reel slot is a vertical strip of glyphs. We render 0..9 then 0,1 again
+  // at the bottom so a fractional position never shows a gap when wrapping.
+  // Cell height MUST match CSS .reel/.strip span height.
+  const CELL = 170;
+  const reelEls = Array.from(el.price.querySelectorAll('.reel'));
+  const strips = {};
+  reelEls.forEach(r=>{
+    const slot = r.dataset.slot;
+    const strip = r.querySelector('.strip');
+    // 12 cells: 0,1,2,3,4,5,6,7,8,9,0,1  (extra wrap padding top is handled by offset)
+    let html='';
+    for (let k=0;k<=11;k++) html += `<span>${k%10}</span>`;
+    strip.innerHTML = html;
+    strips[slot] = strip;
+  });
+
+  // place a reel slot at an odometer position (possibly fractional) 0..10.
+  // translateY = -pos*CELL; the strip's leading 0,1 wrap cells make 9→0 seamless.
+  function setReel(slot, pos){
+    const p = ((pos % 10) + 10) % 10;          // normalize into [0,10)
+    strips[slot].style.transform = `translateY(${(-p*CELL).toFixed(2)}px)`;
+  }
+
+  // Per-slot odometer position — PURE function of `price`, no accumulation.
+  // Each slot shows its CRISP integer digit and only rolls within the top
+  // ROLL_RAMP fraction of its step (i.e. just as the digit below carries 9→0).
+  // place value pv: hundredths .01, tenths .1, units 1, tens 10, hundreds 100.
+  const ROLL_RAMP = 0.12;
+  function slotPos(v, pv){
+    const scaled = v / pv;
+    const digit  = Math.floor(scaled) % 10;
+    const frac   = scaled - Math.floor(scaled);          // 0..1 into this step
+    const roll   = frac > (1 - ROLL_RAMP) ? (frac - (1 - ROLL_RAMP)) / ROLL_RAMP : 0;
+    return digit + roll;
+  }
+  function renderPrice(price){
+    const v = clamp(price, 100, 199.99);                 // sane band; data is 113..124
+    setReel('d2', slotPos(v, 0.01));
+    setReel('d1', slotPos(v, 0.1));
+    setReel('u',  slotPos(v, 1));
+    setReel('t',  slotPos(v, 10));
+    setReel('h',  slotPos(v, 100));
+  }
+
+  // ---- TIMELINE (loop-local ms → match minute + phases) ---------------------
+  // LOOP_MS = 15000. The arc:
+  //   0    .. 700    intro: fade in at KO state, reels settle to $118.03
+  //   700  .. 8400   CALM sweep KO(0) → 80'  (flat ~$118 stalemate; WIN% drifts 32→24, leans DRAW)
+  //   8400 .. 9000   pre-goal tighten 80→88.6'
+  //   9000 .. 9900   GOAL @89': word slams full-frame, price RIPS, WIN% surges
+  //   9900 ..12300   climb 89 → FT(120): reels run up to $123.46, WIN bar to 93%
+  //  12300 ..13700   SETTLED hold: $123.46 vs $123.47, MISS $0.01
+  //  13700 ..15000   fade out → back to KO state (seamless loop)
+  const T = {
+    introA:0,    introB:700,
+    calmA:700,   calmB:8400,    minCalmA:0,   minCalmB:80,
+    tightA:8400, tightB:9000,   minTightB:88.6,
+    goalA:9000,  goalB:9900,    minGoal:89,
+    climbA:9900, climbB:12300,  minClimbA:89, minClimbB:120,
+    holdA:12300, holdB:13700,
+    fadeA:13700, fadeB:15000
+  };
+
+  // current match-minute, pure function of tl
+  function minuteAt(tl){
+    if (tl < T.calmA) return T.minCalmA;
+    if (tl < T.calmB){ const u = ss(T.calmA, T.calmB, tl); return lerp(T.minCalmA, T.minCalmB, u); }
+    if (tl < T.tightB){ const u = ss(T.tightA, T.tightB, tl); return lerp(T.minCalmB, T.minTightB, E.inOut(u)); }
+    if (tl < T.goalB){ const u = ss(T.goalA, T.goalB, tl); return lerp(T.minTightB, T.minGoal, E.out(u)); }
+    if (tl < T.climbB){ const u = ss(T.climbA, T.climbB, tl); return lerp(T.minClimbA, T.minClimbB, E.inOut(u)); }
+    return T.minClimbB; // hold + fade at FT
+  }
+
+  // match-clock label. ≤90 reads directly; the post-goal climb compresses into
+  // a believable 90+1'..90+6' stoppage window, then FT.
+  function clockLabel(min){
+    if (min <= 0) return "0'";
+    if (min <= 90) return Math.round(min) + "'";
+    if (min >= 116) return "FT";
+    const stop = Math.max(1, Math.round(TAIL.map(min, 90, 116, 1, 6)));
+    return "90+" + stop + "'";
+  }
+
+  const fmtPct = (v)=> Math.round(v) + '%';
+
+  // ---- MAIN LOOP ------------------------------------------------------------
+  TAIL.loop((tl, now)=>{
+    const mn    = minuteAt(tl);
+    const price = priceAt(mn);
+    const od    = oddsAt(mn);
+    const postGoal = tl >= T.goalA;
+
+    // seamless fade (whole scene fades to black at both ends)
+    const fadeIn  = ss(T.introA, 460, tl);
+    const fadeOut = 1 - ss(T.fadeA, T.fadeB-140, tl);
+    el.sceneFade.style.opacity = Math.min(fadeIn, fadeOut).toFixed(3);
+
+    // top progress rail: a lime segment that grows L→R with the match, then
+    // resets in the fade. Width is a pure function of mn.
+    const railW = TAIL.map(clamp(mn,0,120), 0, 120, 0, 1920);
+    el.railSeg.style.left = '0px';
+    el.railSeg.style.width = railW.toFixed(1) + 'px';
+    el.railSeg.style.background = postGoal
+      ? 'linear-gradient(90deg, rgba(178,237,104,.5), #B2ED68)'
+      : 'linear-gradient(90deg, rgba(140,145,154,.25), rgba(140,145,154,.55))';
+
+    // ---------- HERO PRICE REELS ----------
+    renderPrice(price);
+
+    // price color: dim/white in the calm flat, ignites lime at the goal & after
+    const up = price >= M.koPrice + 0.02;
+    const priceColor = postGoal ? '#B2ED68' : (up ? '#C4F285' : '#E6E8EB');
+    el.price.querySelectorAll('.reel .strip span').forEach(s=>{ s.style.color = priceColor; });
+    el.price.querySelector('.dot').style.color = priceColor;
+
+    // GOAL impact punch on the hero number: a quick scale-up that decays.
+    // Pure function of tl within the goal window (no accumulation).
+    const punch = postGoal ? (1 - ss(T.goalA, T.goalA+560, tl)) : 0;     // 1→0
+    const heroScale = 1 + 0.13*punch;
+    // subtle calm breathing only (tiny), so the flat section isn't dead-static
+    const breathe = 1 + (postGoal ? 0 : 0.006*Math.sin(tl/520));
+    el.price.style.transform = `scale(${(heroScale*breathe).toFixed(4)})`;
+    el.price.style.filter = postGoal
+      ? `drop-shadow(0 0 ${(26+34*punch).toFixed(0)}px rgba(178,237,104,${(0.45+0.3*punch).toFixed(2)}))`
+      : 'none';
+
+    // delta % vs KO
+    const dPct = ((price - M.koPrice)/M.koPrice)*100;
+    el.delta.textContent = (dPct>=0?'+':'') + dPct.toFixed(2) + '%';
+    el.delta.style.color = dPct >= 0 ? (postGoal?'#B2ED68':'#C4F285') : '#D4135A';
+
+    // caplabel ↔ settle crossfade: caplabel = "MARK PRICE" until settle beat
+    const settleP = ss(T.holdA, T.holdA+520, tl) * (1 - ss(T.fadeA, T.fadeA+520, tl));
+    el.caplabel.style.opacity = (1 - ss(T.holdA-120, T.holdA+260, tl)).toFixed(3);
+    el.settle.style.opacity = settleP.toFixed(3);
+    el.settle.style.transform = `translateY(${((1-E.out(ss(T.holdA,T.holdA+520,tl)))*-14).toFixed(1)}px)`;
+    // precision MISS kicker fades in slightly after the settle tag; the
+    // subline (vs + delta) fades out so the two never share the ~582px zone.
+    el.missKick.style.opacity = settleP.toFixed(3);
+    el.vs.style.opacity    = (1 - ss(T.holdA-60, T.holdA+300, tl)).toFixed(3);
+    el.delta.style.opacity = (1 - ss(T.holdA-60, T.holdA+300, tl)).toFixed(3);
+
+    // ---------- CLOCK + SCORE ----------
+    el.clk.textContent = clockLabel(mn);
+    const scored = postGoal;
+    el.score.textContent = scored ? '1–0' : '0–0';
+    el.score.style.color = scored ? '#B2ED68' : '#E6E8EB';
+    const scorePop = scored ? (1 + 0.26*(1-ss(T.goalA, T.goalA+460, tl))) : 1;
+    el.score.style.transform = `scale(${scorePop.toFixed(3)})`;
+
+    // ---------- GATE CHIPS (live % bars) ----------
+    // bars + pct are pure functions of the live odds at mn.
+    setGate(el.gWin,  el.fWin,  el.pWin,  od.win);
+    setGate(el.gDraw, el.fDraw, el.pDraw, od.draw);
+    setGate(el.gLoss, el.fLoss, el.pLoss, od.loss);
+
+    // which gate currently leads → emphasize it (scale + full opacity).
+    // pre-goal that's DRAW/LOSS; at the goal it flips hard to WIN.
+    let leader;
+    if (postGoal) leader = 'win';
+    else leader = (od.loss >= od.draw) ? 'loss' : 'draw';
+    emphasize(el.gWin,  leader==='win');
+    emphasize(el.gDraw, leader==='draw');
+    emphasize(el.gLoss, leader==='loss');
+
+    // ---------- GOAL SLAM ----------
+    // word punches in fast, holds, then recedes as the climb takes over.
+    const gIn  = ss(T.goalA, T.goalA+260, tl);
+    const gOut = ss(T.climbA+250, T.climbA+900, tl);
+    const gVis = gIn * (1 - gOut);
+    if (gVis > 0.001){
+      // scale-punch: overshoot then settle, all from tl
+      const sc = lerp(1.35, 1.0, E.bounce(ss(T.goalA, T.goalA+560, tl)));
+      el.goalWord.style.opacity = gVis.toFixed(3);
+      el.goalWord.style.transform = `scale(${sc.toFixed(3)})`;
+      el.goalWash.style.opacity = (gVis*0.9).toFixed(3);
+      // subline rides under the word, fades slightly later
+      const subVis = ss(T.goalA+180, T.goalA+520, tl) * (1 - gOut);
+      el.goalSub.style.opacity = subVis.toFixed(3);
+      el.goalSub.style.transform = `translateY(${((1-ss(T.goalA+180,T.goalA+560,tl))*22).toFixed(1)}px)`;
+    } else {
+      el.goalWord.style.opacity = '0';
+      el.goalWash.style.opacity = '0';
+      el.goalSub.style.opacity = '0';
+    }
+  });
+
+  // ---- helpers ----
+  function setGate(gateEl, fillEl, pctEl, prob){
+    fillEl.style.width = clamp(prob,0,100).toFixed(1) + '%';
+    pctEl.textContent = fmtPct(prob);
+  }
+  function emphasize(gateEl, active){
+    gateEl.style.opacity = active ? '1' : '0.46';
+    gateEl.style.transform = `scale(${active ? 1.0 : 0.975})`;
+    gateEl.style.borderColor = active ? '' : 'var(--border)';
+    gateEl.style.filter = active ? 'none' : 'saturate(.75)';
+  }
+
+})();
+
+TAIL.ready();
+</script>
+</body>
+</html>

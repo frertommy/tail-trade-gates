@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TAIL.TRADE — Probability Heatmap · LIV-PERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="../data.js"></script>
+<style>
+  /* ────────────────────────────────────────────────────────────
+     TAIL.TRADE — Launch Video · 10 PROBABILITY HEATMAP (liverpool)
+     A data-science view of the LIV-PERP perp. x = match time (KO→FT),
+     y = price. A HEAT FIELD shows where the price is likely to settle:
+     hot bands cluster around the W/D/L gate prices, weighted live by
+     MATCHES_oddsAt. As the odds swing the hot band migrates LOSE→DRAW/
+     WIN→LOSE. The real price PATH traces over the heat as a crisp
+     glowing line; gates marked on the right with live %. Goals fire
+     labels + same-frame reactions. At FT the LOSE cell ignites as the
+     price lands $179.09. A NOW column sweeps left→right, then resets
+     for a seamless loop. "Probability made visible."
+     ──────────────────────────────────────────────────────────── */
+  :root{
+    --bg:#0C0E12; --bg-2:#0F1419; --bg-3:#1A1F26; --bg-4:#34363A; --bg-hover:#1F252E; --bg-landing:#242629;
+    --border:#2A3038;
+    --text:#E6E8EB; --text-2:#8C919A; --muted:#5C6370;
+    --lime:#B2ED68; --lime-l:#C4F285; --lime-d:#93D44A;
+    --crimson:#B30F43; --crimson-l:#D4135A; --crimson-d:#8C0B34;
+    --amber:#fbbf24; --amber-l:#fcd34d; --amber-d:#d99a09;
+    --cyan:#00D9F5; --cyan-l:#33E3F7; --cyan-d:#00B8D4;
+    --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --ease-spring:cubic-bezier(.16,1,.3,1);
+    --ease-bounce:cubic-bezier(.34,1.56,.4,1);
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; background:#000; overflow:hidden; }
+  body{ font-family:var(--font); color:var(--text); }
+
+  .viewport{ position:fixed; inset:0; display:grid; place-items:center; background:#000; }
+
+  .stage{
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform-origin:center center;
+    background:
+      radial-gradient(150% 130% at 20% -12%, #10141b 0%, #0C0E12 52%, #07090c 100%);
+    overflow:hidden;
+    opacity:0;
+  }
+  body.ready .stage{ opacity:1; }
+
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:90; opacity:.04; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain .5s steps(3) infinite; }
+  @keyframes grain{ 0%{transform:translate(0,0)} 33%{transform:translate(-4px,3px)} 66%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)} }
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:91;
+    background:radial-gradient(125% 120% at 50% 48%, transparent 50%, rgba(0,0,0,.62) 100%); }
+
+  /* ===== SCENE ===== */
+  .scene{ position:absolute; inset:0; z-index:10; }
+
+  /* the heat field canvas fills the plot area (drawn each frame, pure fn of tl) */
+  #heat{ position:absolute; inset:0; z-index:12; }
+  /* crisp overlay canvas for axes, gate guides, the price path + head */
+  #fx{ position:absolute; inset:0; z-index:16; }
+
+  /* ---- top HUD ---- */
+  .hud{ position:absolute; left:84px; right:84px; top:58px; display:flex; align-items:flex-start; justify-content:space-between; z-index:40; }
+  .hud-l{ display:flex; align-items:center; gap:18px; }
+  .tk-badge{ display:flex; align-items:center; gap:14px; }
+  .tk-dot{ width:11px; height:11px; border-radius:50%; background:var(--lime); box-shadow:0 0 14px var(--lime); }
+  .tk-name{ font-family:var(--mono); font-weight:700; font-size:29px; letter-spacing:.14em; color:var(--text); }
+  .tk-sub{ font-family:var(--font); font-weight:500; font-size:14px; letter-spacing:.32em; color:var(--text-2); text-transform:uppercase; margin-top:5px; }
+  .eyebrow{ display:flex; align-items:center; gap:12px; margin-left:8px; padding:7px 15px; border:1px solid var(--border);
+    border-radius:999px; background:rgba(12,15,20,.6); }
+  .eyebrow .ed{ width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan); }
+  .eyebrow .et{ font-family:var(--font); font-weight:600; font-size:12.5px; letter-spacing:.3em; color:var(--text-2); text-transform:uppercase; }
+
+  /* scoreboard (center) */
+  .score{ position:absolute; left:50%; top:58px; transform:translateX(-50%); display:flex; align-items:center; gap:24px; z-index:40; }
+  .score .team{ font-family:var(--font); font-weight:600; font-size:20px; letter-spacing:.2em; color:var(--text-2); text-transform:uppercase; }
+  .score .team.subj{ color:var(--text); }
+  .score .nums{ font-family:var(--mono); font-weight:700; font-size:38px; letter-spacing:.04em; color:var(--text); font-variant-numeric:tabular-nums; min-width:92px; text-align:center; display:flex; justify-content:center; gap:13px; }
+  .score .nums .gh{ display:inline-block; min-width:28px; text-align:center; }
+  .score .sep{ color:var(--muted); }
+
+  /* clock (right) */
+  .clock{ display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+  .clock .t{ font-family:var(--mono); font-weight:700; font-size:33px; letter-spacing:.06em; color:var(--text); font-variant-numeric:tabular-nums; }
+  .clock .lab{ font-family:var(--font); font-weight:500; font-size:13px; letter-spacing:.32em; color:var(--text-2); text-transform:uppercase; }
+  .clock.ft .t{ color:var(--crimson-l); }
+
+  /* ---- big price readout (top-left, under ticker) ---- */
+  .px{ position:absolute; left:84px; top:148px; z-index:38; display:flex; align-items:baseline; gap:16px; }
+  .px .val{ font-family:var(--mono); font-weight:700; font-size:74px; letter-spacing:.01em; color:var(--text); font-variant-numeric:tabular-nums; line-height:1;
+    text-shadow:0 0 28px rgba(0,0,0,.65); }
+  .px .dl{ font-family:var(--mono); font-weight:700; font-size:27px; font-variant-numeric:tabular-nums; padding:6px 13px; border-radius:var(--r-md); line-height:1; }
+
+  /* axis caption chips */
+  .axcap{ position:absolute; z-index:30; font-family:var(--font); font-weight:600; font-size:13px; letter-spacing:.3em; color:var(--muted); text-transform:uppercase; }
+  .axcap.x{ left:50%; transform:translateX(-50%); }
+
+  /* ---- right gate panel ---- */
+  .gates{ position:absolute; right:70px; top:286px; width:316px; z-index:42; display:flex; flex-direction:column; gap:0; }
+  .gates-h{ font-family:var(--font); font-weight:600; font-size:13px; letter-spacing:.32em; color:var(--text-2); text-transform:uppercase; margin-bottom:16px; padding-left:2px;
+    display:flex; align-items:center; gap:10px; }
+  .gates-h::after{ content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+  .gate{ position:relative; display:flex; align-items:center; gap:14px; padding:15px 16px; border-radius:var(--r-lg);
+    border:1px solid var(--border); background:rgba(12,16,22,.62); margin-bottom:12px; overflow:hidden; backdrop-filter:blur(3px); }
+  .gate .gbar{ position:absolute; left:0; top:0; bottom:0; width:0%; opacity:.14; }
+  .gate .gk{ font-family:var(--font); font-weight:700; font-size:16px; letter-spacing:.16em; width:58px; flex:0 0 auto; z-index:2; }
+  .gate .gmid{ z-index:2; flex:1 1 auto; }
+  .gate .gprice{ font-family:var(--mono); font-weight:700; font-size:24px; font-variant-numeric:tabular-nums; line-height:1.05; }
+  .gate .gtl{ font-family:var(--font); font-weight:500; font-size:10.5px; letter-spacing:.2em; color:var(--text-2); text-transform:uppercase; margin-top:3px; }
+  .gate .gprob{ font-family:var(--mono); font-weight:700; font-size:29px; font-variant-numeric:tabular-nums; z-index:2; text-align:right; width:72px; flex:0 0 auto; }
+  .gate .gprob .pct{ font-size:15px; opacity:.6; }
+  .gate.win .gk{ color:var(--lime); } .gate.win .gbar{ background:var(--lime); }
+  .gate.draw .gk{ color:var(--amber); } .gate.draw .gbar{ background:var(--amber); }
+  .gate.lose .gk{ color:var(--crimson-l); } .gate.lose .gbar{ background:var(--crimson-l); }
+  .gate.win .gprice{ color:var(--lime-l); } .gate.draw .gprice{ color:var(--amber-l); } .gate.lose .gprice{ color:var(--crimson-l); }
+  .gate.active{ background:rgba(20,26,34,.92); }
+  .gate.win.active{ border-color:rgba(178,237,104,.85); box-shadow:0 0 0 1px rgba(178,237,104,.5),0 0 34px rgba(178,237,104,.22); }
+  .gate.draw.active{ border-color:rgba(251,191,36,.85); box-shadow:0 0 0 1px rgba(251,191,36,.5),0 0 34px rgba(251,191,36,.2); }
+  .gate.lose.active{ border-color:rgba(212,19,90,.9); box-shadow:0 0 0 1px rgba(212,19,90,.55),0 0 34px rgba(179,15,67,.26); }
+  /* connector tick that points from gate label toward its heat band on the plot */
+  .gate .gtick{ position:absolute; left:-18px; top:50%; transform:translateY(-50%); width:12px; height:2px; opacity:.5; }
+  .gate.win .gtick{ background:var(--lime); } .gate.draw .gtick{ background:var(--amber); } .gate.lose .gtick{ background:var(--crimson-l); }
+
+  /* MOST LIKELY pill above the panel */
+  .ml{ position:absolute; right:70px; top:216px; width:316px; z-index:43;
+    display:flex; align-items:center; justify-content:space-between; padding:11px 18px; border-radius:var(--r-lg);
+    border:1px solid var(--border); background:rgba(10,13,18,.72); }
+  .ml .mll{ font-family:var(--font); font-weight:500; font-size:11.5px; letter-spacing:.3em; color:var(--text-2); text-transform:uppercase; }
+  .ml .mlv{ font-family:var(--mono); font-weight:700; font-size:19px; letter-spacing:.14em; display:flex; align-items:center; gap:10px; }
+  .ml .mlv .mldot{ width:9px; height:9px; border-radius:50%; box-shadow:0 0 12px currentColor; }
+
+  /* legend (bottom-left of plot) explaining the heat */
+  .legend{ position:absolute; left:122px; bottom:96px; z-index:36; display:flex; align-items:center; gap:20px;
+    padding:10px 16px; border:1px solid var(--border); border-radius:var(--r-lg); background:rgba(10,13,18,.55); backdrop-filter:blur(3px); }
+  .legend .lt{ font-family:var(--font); font-weight:500; font-size:11px; letter-spacing:.26em; color:var(--text-2); text-transform:uppercase; }
+  .legend .lk{ display:flex; align-items:center; gap:8px; font-family:var(--font); font-weight:600; font-size:11.5px; letter-spacing:.12em; color:var(--text-2); text-transform:uppercase; }
+  .legend .sw{ width:26px; height:9px; border-radius:3px; }
+  .legend .sw.win{ background:linear-gradient(90deg,rgba(178,237,104,.15),var(--lime)); box-shadow:0 0 10px rgba(178,237,104,.4); }
+  .legend .sw.draw{ background:linear-gradient(90deg,rgba(251,191,36,.15),var(--amber)); box-shadow:0 0 10px rgba(251,191,36,.35); }
+  .legend .sw.lose{ background:linear-gradient(90deg,rgba(212,19,90,.15),var(--crimson-l)); box-shadow:0 0 10px rgba(179,15,67,.4); }
+
+  /* goal card */
+  .goal{ position:absolute; z-index:46; pointer-events:none; transform:translate(-50%,0); }
+  .goal-card{ position:relative; display:flex; flex-direction:column; gap:7px; padding:14px 20px 15px; border-radius:var(--r-lg);
+    background:rgba(13,17,23,.86); backdrop-filter:blur(8px); border:1px solid var(--border);
+    box-shadow:0 18px 50px rgba(0,0,0,.55); min-width:206px; }
+  .goal-card .gtag{ font-family:var(--font); font-weight:700; font-size:14px; letter-spacing:.28em; text-transform:uppercase; display:flex; align-items:center; gap:9px; }
+  .goal-card .gdot{ width:9px; height:9px; border-radius:50%; }
+  .goal-card .gname{ font-family:var(--mono); font-weight:700; font-size:25px; letter-spacing:.02em; color:var(--text); }
+  .goal-card .gsc{ font-family:var(--mono); font-weight:700; font-size:15px; letter-spacing:.08em; }
+  .goal.up .goal-card{ border-color:rgba(178,237,104,.5); box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 36px rgba(178,237,104,.18); }
+  .goal.up .gtag{ color:var(--lime); } .goal.up .gdot{ background:var(--lime); } .goal.up .gsc{ color:var(--lime); }
+  .goal.down .goal-card{ border-color:rgba(212,19,90,.5); box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 36px rgba(179,15,67,.22); }
+  .goal.down .gtag{ color:var(--crimson-l); } .goal.down .gdot{ background:var(--crimson-l); } .goal.down .gsc{ color:var(--crimson-l); }
+  .goal-card::after{ content:''; position:absolute; left:50%; bottom:-9px; width:1px; height:9px; transform:translateX(-50%); background:var(--border); }
+
+  /* watermark */
+  .wm{ position:absolute; left:84px; bottom:50px; z-index:80; color:#fff; opacity:.92; }
+  .wm svg{ display:block; height:24px; width:auto; }
+  .wm-tag{ position:absolute; right:84px; bottom:54px; z-index:80; font-family:var(--font); font-weight:500; font-size:13px; letter-spacing:.3em; color:var(--text-2); text-transform:uppercase; }
+
+  /* FT settle stamp */
+  .ftstamp{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:60; text-align:center; opacity:0; }
+  .ftstamp .fl{ font-family:var(--font); font-weight:700; font-size:19px; letter-spacing:.5em; color:var(--crimson-l); text-transform:uppercase; }
+</style>
+</head>
+<body data-loop-ms="16000">
+  <div class="viewport">
+    <div class="stage" id="stage">
+
+      <div class="scene">
+        <!-- heat field (probability) -->
+        <canvas id="heat" width="1920" height="1080"></canvas>
+        <!-- crisp overlay: axes, gate guides, price path, head, now-column -->
+        <canvas id="fx" width="1920" height="1080"></canvas>
+
+        <!-- top HUD -->
+        <div class="hud">
+          <div class="hud-l">
+            <div class="tk-badge">
+              <div class="tk-dot"></div>
+              <div>
+                <div class="tk-name">LIV-PERP</div>
+                <div class="tk-sub">Premier League · May 3</div>
+              </div>
+            </div>
+            <div class="eyebrow"><span class="ed"></span><span class="et">Probability Field</span></div>
+          </div>
+          <div class="clock" id="clockWrap">
+            <div class="t" id="clock">0'</div>
+            <div class="lab">MATCH CLOCK</div>
+          </div>
+        </div>
+
+        <!-- scoreboard -->
+        <div class="score">
+          <div class="team subj">LIVERPOOL</div>
+          <div class="nums"><span class="gh" id="scH">0</span><span class="sep">:</span><span class="gh" id="scA">0</span></div>
+          <div class="team">MAN UTD</div>
+        </div>
+
+        <!-- big price readout -->
+        <div class="px">
+          <div class="val" id="pxVal">$185.12</div>
+          <div class="dl" id="pxDl">0.00</div>
+        </div>
+
+        <!-- x axis caption -->
+        <div class="axcap x" id="axX" style="bottom:60px;">MATCH TIME · KO → FT</div>
+
+        <!-- MOST LIKELY indicator -->
+        <div class="ml">
+          <div class="mll">MOST&nbsp;LIKELY&nbsp;SETTLE</div>
+          <div class="mlv" id="mlVal"><span class="mldot" id="mlDot"></span><span id="mlTxt">LOSE</span></div>
+        </div>
+
+        <!-- right gate panel -->
+        <div class="gates">
+          <div class="gates-h">SETTLEMENT GATES</div>
+          <div class="gate win" id="gWin">
+            <div class="gbar"></div><div class="gtick"></div>
+            <div class="gk">WIN</div>
+            <div class="gmid"><div class="gprice">$194.00</div><div class="gtl">Liverpool win</div></div>
+            <div class="gprob" id="pWin">34<span class="pct">%</span></div>
+          </div>
+          <div class="gate draw" id="gDraw">
+            <div class="gbar"></div><div class="gtick"></div>
+            <div class="gk">DRAW</div>
+            <div class="gmid"><div class="gprice">$185.94</div><div class="gtl">Stalemate</div></div>
+            <div class="gprob" id="pDraw">26<span class="pct">%</span></div>
+          </div>
+          <div class="gate lose" id="gLose">
+            <div class="gbar"></div><div class="gtick"></div>
+            <div class="gk">LOSE</div>
+            <div class="gmid"><div class="gprice">$178.05</div><div class="gtl">Liverpool lose</div></div>
+            <div class="gprob" id="pLose">41<span class="pct">%</span></div>
+          </div>
+        </div>
+
+        <!-- heat legend -->
+        <div class="legend">
+          <span class="lt">Likely&nbsp;settle&nbsp;price</span>
+          <span class="lk"><span class="sw win"></span>Win</span>
+          <span class="lk"><span class="sw draw"></span>Draw</span>
+          <span class="lk"><span class="sw lose"></span>Lose</span>
+        </div>
+
+        <!-- goal card host -->
+        <div id="goalHost"></div>
+
+        <!-- FT stamp -->
+        <div class="ftstamp" id="ftStamp"><div class="fl">FULL TIME · SETTLED ON LOSE</div></div>
+
+        <!-- watermark -->
+        <div class="wm" id="wm"></div>
+        <div class="wm-tag">THE FIRST PERP FOR SPORTS</div>
+      </div>
+
+      <div class="grain"></div>
+      <div class="vignette"></div>
+    </div>
+  </div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   TAIL — tiny runtime shared by every launch video.
+   ──────────────────────────────────────────────────────────────── */
+const TAIL = (()=>{
+  const stage = document.getElementById('stage');
+  const LOOP_MS = parseInt(document.body.dataset.loopMs || '12000', 10);
+
+  function fit(){
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function makeRng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const rng = makeRng(0x7A11ED);
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+  const E={
+    inOut:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+    out:t=>1-Math.pow(1-t,3),
+    in:t=>t*t*t,
+    spring:t=>1-Math.pow(1-t,4),
+    bounce:t=>{const c=1.70158*1.525;return t<.5?(Math.pow(2*t,2)*((c+1)*2*t-c))/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2;},
+  };
+
+  const loops=[];
+  function loop(fn){ loops.push(fn); }
+  function start(){
+    function tick(now){
+      const tl = now % LOOP_MS;
+      for(const fn of loops) fn(tl, now);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function ready(){
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.add('ready');
+      start();
+      window.__READY__ = true;
+    })));
+  }
+
+  const LOGO = `<svg viewBox="0 0 117 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/><path d="M71.0211 15.1357C71.3173 15.1358 71.5706 15.2444 71.7754 15.458L71.8515 15.5371C72.0167 15.7276 72.1003 15.9552 72.1004 16.2158C72.1004 16.5136 71.9912 16.7721 71.7774 16.9863C71.5716 17.1922 71.3172 17.2959 71.0211 17.2959C70.7249 17.2959 70.4665 17.1927 70.2521 16.9883L70.2492 16.9854C70.045 16.7708 69.9418 16.5122 69.9418 16.2158C69.9418 15.9195 70.0454 15.6649 70.2511 15.459C70.4652 15.245 70.7236 15.1357 71.0211 15.1357Z"/><path d="M40.2985 8.3916H37.4442V17.0996H36.0692V8.3916H33.2158V7.09961H40.2985V8.3916Z"/><path clip-rule="evenodd" d="M46.5234 7.1709L49.5291 17.0996H48.0604L48.0389 17.0283L47.3471 14.6641H43.2993L42.6074 17.0283L42.5859 17.0996H41.1173L44.1219 7.1709L44.1434 7.09961H46.502L46.5234 7.1709ZM43.6789 13.3721H46.9665L45.3319 7.80371H45.3144L43.6789 13.3721Z" fill-rule="evenodd"/><path d="M57.0948 8.3916H54.5761V15.8076H57.0948V17.0996H50.6835V15.8076H53.2012V8.3916H50.6835V7.09961H57.0948V8.3916Z"/><path d="M60.6664 15.8076H65.7866V17.0996H59.2914V7.09961H60.6664V15.8076Z"/><path d="M83.1284 8.3916H80.274V17.0996H78.8991V8.3916H76.0457V7.09961H83.1284V8.3916Z"/><path clip-rule="evenodd" d="M88.559 7.09961C89.0707 7.09965 89.5209 7.17585 89.9076 7.33008C90.2911 7.47398 90.6121 7.67228 90.8659 7.92578C91.1285 8.17882 91.3239 8.47658 91.4504 8.81738C91.5853 9.14627 91.6524 9.49424 91.6524 9.86035V10.2803C91.6524 10.6638 91.5436 11.0443 91.3314 11.4209C91.1334 11.788 90.8277 12.0703 90.4209 12.2725V12.2979C90.6806 12.3551 90.8935 12.4708 91.0532 12.6494C91.2333 12.8509 91.3167 13.1298 91.3167 13.4717V17.0996H89.9417V13.7236C89.9417 13.4954 89.8883 13.3358 89.7973 13.2295C89.7136 13.1317 89.5545 13.0684 89.286 13.0684H86.336V17.0996H84.961V7.09961H88.559ZM86.336 11.7764H88.4185C89.0694 11.7764 89.5308 11.6378 89.8217 11.3809C90.1211 11.1153 90.2774 10.726 90.2774 10.1963V9.94434C90.2774 9.47408 90.1229 9.10551 89.8198 8.82812L89.8178 8.82617C89.5269 8.54356 89.0674 8.3916 88.4185 8.3916H86.336V11.7764Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M97.9193 7.1709L100.925 17.0996H99.4562L99.4348 17.0283L98.7429 14.6641H94.6951L94.0032 17.0283L93.9818 17.0996H92.5131L95.5177 7.1709L95.5392 7.09961H97.8978L97.9193 7.1709ZM95.0747 13.3721H98.3623L96.7278 7.80371H96.7102L95.0747 13.3721Z" fill-rule="evenodd"/><path clip-rule="evenodd" d="M105.243 7.09961C106.469 7.09964 107.386 7.39218 107.972 7.99805C108.558 8.60362 108.84 9.55905 108.84 10.8398V13.3604C108.84 14.641 108.558 15.5956 107.972 16.2012C107.386 16.8073 106.469 17.0996 105.243 17.0996H101.925V15.7939H102.764V8.3916H101.925V7.09961H105.243ZM104.139 15.8076H105.075C105.498 15.8076 105.857 15.7665 106.153 15.6855C106.457 15.6052 106.703 15.4725 106.894 15.29C107.084 15.0993 107.225 14.8453 107.315 14.5234C107.414 14.1974 107.465 13.7836 107.465 13.2764V10.9238C107.465 10.4166 107.414 10.0028 107.316 9.67969C107.225 9.35685 107.085 9.10117 106.894 8.9248C106.702 8.73157 106.457 8.59473 106.154 8.51465C105.858 8.4337 105.498 8.39162 105.075 8.3916H104.139V15.8076Z" fill-rule="evenodd"/><path d="M116.916 8.3916H112.16V11.4404H116.832V12.7324H112.16V15.8076H117V17.0996H110.785V7.09961H116.916V8.3916Z"/></svg>`;
+  const MARK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.9868 13C17.9868 15.2091 19.7763 17 21.9839 17H23.9824V18H21.9839C19.7763 18 17.9868 19.7909 17.9868 22V24H16.9875V22C16.9875 19.7909 15.198 18 12.9905 18H10.9919V17H12.9905C15.198 17 16.9875 15.2091 16.9875 13V3H17.9868V13Z"/><path d="M6.99486 2C6.99486 4.20914 8.78441 6 10.9919 6H12.9905V7H10.9919C8.78441 7 6.99486 8.79086 6.99486 11V21H5.9956V11C5.9956 8.79086 4.20605 7 1.99853 7H0V6H1.99853C4.20605 6 5.9956 4.20914 5.9956 2V0H6.99486V2Z"/></svg>`;
+
+  return { stage, LOOP_MS, fit, loop, ready, rng, clamp, lerp, map, E, LOGO, MARK };
+})();
+
+/* ============================================================
+   SCENE SCRIPT — Variant 10 PROBABILITY HEATMAP (liverpool)
+   ============================================================ */
+(function(){
+  const M = window.MATCHES.liverpool;
+  const { clamp, lerp, map, E } = TAIL;
+  const priceAt = (min)=>window.MATCHES_priceAt(M, min);
+  const oddsAt  = (min)=>window.MATCHES_oddsAt(M, min);
+
+  // ---- plot geometry (canvas user units = 1920x1080) ----
+  const PLOT = { x0:122, x1:1556, y0:236, y1:902 };
+  const X_MIN = M.xMin;            // -60  (pre-KO history shown at left)
+  const X_END = 122;               // a touch past ftMin(120) so settle reads cleanly
+  const Y_MIN = M.priceMin;        // 176
+  const Y_MAX = M.priceMax;        // 198
+
+  const xToPx = (min)=> map(clamp(min, X_MIN, X_END), X_MIN, X_END, PLOT.x0, PLOT.x1);
+  const yToPx = (p)=>   map(clamp(p, Y_MIN, Y_MAX), Y_MIN, Y_MAX, PLOT.y1, PLOT.y0);
+  const pxToMin = (x)=> map(x, PLOT.x0, PLOT.x1, X_MIN, X_END);
+
+  // ---- timeline (ms within LOOP) ----
+  const LOOP = TAIL.LOOP_MS;       // 16000
+  const T = {
+    ko:        1300,               // hold at KO before the now-column sweeps
+    sweepEnd:  12700,              // now-column reaches X_END here
+    settleEnd: 14700,              // FT ignite hold ends
+    resetEnd:  LOOP                // dissolve back to KO (seamless)
+  };
+  function clockMin(tl){
+    if(tl < T.ko) return X_MIN + (0 - X_MIN);   // park at KO(0)? keep at 0 — pre-KO already filled
+    if(tl < T.sweepEnd) return map(tl, T.ko, T.sweepEnd, 0, X_END);
+    return X_END;
+  }
+  // The NOW column position in chart-min. Before sweep we sit at KO(0).
+  function nowMin(tl){
+    if(tl < T.ko) return 0;
+    if(tl < T.sweepEnd) return map(tl, T.ko, T.sweepEnd, 0, X_END);
+    return X_END;
+  }
+
+  // ---- gate definitions (REAL numbers) ----
+  const GATES = {
+    win:  { price:M.gates.win.price,  rgb:[178,237,104], el:document.getElementById('gWin'),  prob:document.getElementById('pWin') },
+    draw: { price:M.gates.draw.price, rgb:[251,191,36],  el:document.getElementById('gDraw'), prob:document.getElementById('pDraw') },
+    loss: { price:M.gates.loss.price, rgb:[212,19,90],   el:document.getElementById('gLose'), prob:document.getElementById('pLose') },
+  };
+  const KEYS = ['win','draw','loss'];
+
+  // ---- HEAT GRID ----
+  // Coarse cell grid over the plot, drawn into an offscreen buffer then
+  // scaled up (smoothing) onto the visible canvas. Each cell's intensity is a
+  // PURE FUNCTION of tl: for the column's chart-min we read oddsAt(min) and
+  // sum three gaussians centered at the gate prices, weighted by win/draw/loss.
+  const heat = document.getElementById('heat');
+  const hctx = heat.getContext('2d');
+  const fx = document.getElementById('fx');
+  const fctx = fx.getContext('2d');
+
+  const GW = 168, GH = 96;                          // heat buffer resolution (cols x rows)
+  const buf = document.createElement('canvas'); buf.width = GW; buf.height = GH;
+  const bctx = buf.getContext('2d');
+  const img = bctx.createImageData(GW, GH);
+  const data = img.data;
+  // tiny bloom buffer — downscaling buf into this then upscaling back yields a
+  // cheap, deterministic glow WITHOUT ctx.filter='blur()' (which is flaky/slow
+  // under headless SwiftShader and was crashing capture mid-run).
+  const blo = document.createElement('canvas'); blo.width = Math.round(GW/2); blo.height = Math.round(GH/2);
+  const loctx = blo.getContext('2d');
+  loctx.imageSmoothingEnabled = true;
+
+  // Precompute, per buffer column, its chart-min and the y-pixel→price for each row.
+  const COLMIN = new Float64Array(GW);
+  for(let cx=0; cx<GW; cx++){
+    const px = PLOT.x0 + (cx+0.5)/GW * (PLOT.x1-PLOT.x0);
+    COLMIN[cx] = pxToMin(px);
+  }
+  const ROWPRICE = new Float64Array(GH);
+  for(let cy=0; cy<GH; cy++){
+    const py = PLOT.y0 + (cy+0.5)/GH * (PLOT.y1-PLOT.y0);
+    ROWPRICE[cy] = map(py, PLOT.y1, PLOT.y0, Y_MIN, Y_MAX);
+  }
+  // gate price → buffer-row index (for ignite + band centers)
+  const gateRowF = (price)=> map(clamp(price,Y_MIN,Y_MAX), Y_MIN, Y_MAX, GH-0.5, 0.5);
+
+  // gaussian half-width (in price units) for each gate band — tight = crisp band
+  const SIGMA = 1.55;                               // price std-dev of each band
+  const inv2s2 = 1/(2*SIGMA*SIGMA);
+
+  // ---- goal anchors for a believable real-minute clock ----
+  const CLK_ANCHORS = [
+    [X_MIN,-2],[0,0],[6,6],[14,14],[45,45],[62,47],[71,56],[90,77],[92,77],[110,90],[X_END,94]
+  ];
+  function displayMinute(cm){
+    if(cm<=CLK_ANCHORS[0][0]) return CLK_ANCHORS[0][1];
+    for(let i=1;i<CLK_ANCHORS.length;i++){
+      if(cm<=CLK_ANCHORS[i][0]){ const a=CLK_ANCHORS[i-1],b=CLK_ANCHORS[i]; return lerp(a[1],b[1],(cm-a[0])/(b[0]-a[0])); }
+    }
+    return CLK_ANCHORS[CLK_ANCHORS.length-1][1];
+  }
+
+  // ---- score helper ----
+  function scoreAt(min){
+    let last='0-0'; for(const g of M.goals){ if(min>=g.min) last=g.score; }
+    const [hh,aa]=last.split('-'); return { h:+hh, a:+aa };
+  }
+
+  // ---- dense samples of the real price path ----
+  const STEP = 0.5, SAMPLES=[];
+  for(let mn=X_MIN; mn<=X_END+0.001; mn+=STEP){ SAMPLES.push({ mn, x:xToPx(mn), y:yToPx(priceAt(mn)) }); }
+
+  // ---- goal cards ----
+  const goalHost = document.getElementById('goalHost');
+  const GOALS = M.goals.map(g=>{
+    const card = document.createElement('div');
+    card.className = 'goal '+(g.by==='subject'?'up':'down');
+    const tag = g.by==='subject' ? 'LIVERPOOL · LONG' : 'MAN UTD · SHORT';
+    card.innerHTML =
+      '<div class="goal-card">'+
+        '<div class="gtag"><span class="gdot"></span>'+tag+'</div>'+
+        '<div class="gname">'+g.label+'</div>'+
+        '<div class="gsc">'+(g.by==='subject'?'▲':'▼')+'  LIVERPOOL '+g.score.replace('-',' : ')+' MAN UTD</div>'+
+      '</div>';
+    card.style.opacity='0';
+    goalHost.appendChild(card);
+    const tlGoal = T.ko + (g.min / X_END) * (T.sweepEnd - T.ko);
+    return { ...g, x:xToPx(g.min), card, tlGoal };
+  });
+
+  // ---- element refs ----
+  const elClock=document.getElementById('clock'), elClockWrap=document.getElementById('clockWrap');
+  const elScH=document.getElementById('scH'), elScA=document.getElementById('scA');
+  const elPxVal=document.getElementById('pxVal'), elPxDl=document.getElementById('pxDl');
+  const elMlTxt=document.getElementById('mlTxt'), elMlDot=document.getElementById('mlDot'), elMlVal=document.getElementById('mlVal');
+  const ftStamp=document.getElementById('ftStamp');
+  document.getElementById('wm').innerHTML = TAIL.LOGO;
+
+  const C_UP='#B2ED68', C_DN='#D4135A', C_NEU='#8C919A';
+  const ML={ win:{txt:'WIN',col:'#B2ED68'}, draw:{txt:'DRAW',col:'#fbbf24'}, loss:{txt:'LOSE',col:'#D4135A'} };
+
+  // gate target y in buffer rows (constant)
+  const GATE_ROW = { win:gateRowF(GATES.win.price), draw:gateRowF(GATES.draw.price), loss:gateRowF(GATES.loss.price) };
+
+  // ── render the heat buffer as a pure function of (nowM, revealK, igniteK) ──
+  // nowM   : chart-min of the NOW column (sweep position)
+  // revealK: 0..1 global dissolve (1 = fully visible, used to fade for the seam)
+  // igniteK: 0..1 LOSE-gate ignition strength at FT
+  function renderHeat(nowM, revealK, igniteK){
+    // For each column, decide its evaluation minute:
+    //  • columns at/behind NOW show the *realized* distribution at that past time
+    //  • columns AHEAD of NOW show the FORECAST = current live odds at NOW
+    //    (the field literally projects where it's likely to settle from now on),
+    //    fading with distance into the future.
+    const odNow = oddsAt(clamp(nowM, X_MIN, X_END));
+    const totN = (odNow.win+odNow.draw+odNow.loss)||1;
+    const wN=odNow.win/totN, dN=odNow.draw/totN, lN=odNow.loss/totN;
+
+    for(let cx=0; cx<GW; cx++){
+      const colMin = COLMIN[cx];
+      const ahead = colMin > nowM;
+      let w,d,l, colAmp;
+      if(!ahead){
+        const od = oddsAt(clamp(colMin, X_MIN, X_END));
+        const tot=(od.win+od.draw+od.loss)||1;
+        w=od.win/tot; d=od.draw/tot; l=od.loss/tot;
+        colAmp = 1.0;                                   // history: full intensity
+      } else {
+        // forecast band: hold NOW's odds, taper into the future
+        w=wN; d=dN; l=lN;
+        const fwd = clamp((colMin - nowM)/(X_END - X_MIN), 0, 1);
+        colAmp = 0.62 * Math.pow(1-fwd, 0.85);          // dim, fades forward
+      }
+      // pre-KO (before min 0) is "settled flat" market — keep it cool/even
+      if(colMin < 0){ colAmp *= 0.5; }
+
+      // weighted gaussian mixture down the column
+      const cw = GATES.win.price, cd = GATES.draw.price, cl = GATES.loss.price;
+      for(let cy=0; cy<GH; cy++){
+        const pr = ROWPRICE[cy];
+        const gw = w*Math.exp(-(pr-cw)*(pr-cw)*inv2s2);
+        const gd = d*Math.exp(-(pr-cd)*(pr-cd)*inv2s2);
+        const gl = l*Math.exp(-(pr-cl)*(pr-cl)*inv2s2);
+        const dens = gw+gd+gl;                            // 0..~1
+        // color = weighted blend of the three gate colors by their local contribution
+        const denom = dens || 1e-6;
+        let r = (gw*178 + gd*251 + gl*212)/denom;
+        let g = (gw*237 + gd*191 + gl*19)/denom;
+        let b = (gw*104 + gd*36  + gl*90)/denom;
+        // intensity curve: emphasize the hot core
+        let a = Math.pow(clamp(dens,0,1), 0.72) * colAmp * revealK;
+
+        // FT ignition: when igniteK>0, blow up the LOSE band on the last columns
+        if(igniteK>0){
+          const distLose = Math.abs(pr - cl);
+          const ig = Math.exp(-distLose*distLose*inv2s2) * igniteK;
+          // ignite strongest at the right edge (settle), present across recent cols
+          const edge = clamp((colMin - 95)/(X_END-95), 0, 1);     // 0 at min95 → 1 at FT
+          const igCol = ig * (0.35 + 0.65*edge);
+          a = clamp(a + igCol*0.95, 0, 1);
+          // push color toward bright crimson core
+          r = lerp(r, 230, igCol); g = lerp(g, 24, igCol); b = lerp(b, 92, igCol);
+        }
+
+        const idx = (cy*GW + cx)*4;
+        data[idx]   = r|0;
+        data[idx+1] = g|0;
+        data[idx+2] = b|0;
+        data[idx+3] = (clamp(a,0,1)*255)|0;
+      }
+    }
+    bctx.putImageData(img, 0, 0);
+
+    // downscale the buffer (smooth) into the small bloom buffer for a glow pass
+    loctx.clearRect(0,0,blo.width,blo.height);
+    loctx.drawImage(buf, 0,0, blo.width, blo.height);
+
+    // composite onto the visible heat canvas — no ctx.filter (capture-safe)
+    const pw = PLOT.x1-PLOT.x0, ph = PLOT.y1-PLOT.y0;
+    hctx.clearRect(0,0,1920,1080);
+    hctx.save();
+    hctx.imageSmoothingEnabled = true;
+    hctx.imageSmoothingQuality = 'high';
+    hctx.globalCompositeOperation = 'lighter';
+    // wide soft bloom (from the half-res buffer, drawn oversized → very smooth)
+    hctx.globalAlpha = 0.5;
+    hctx.drawImage(blo, PLOT.x0-10, PLOT.y0-10, pw+20, ph+20);
+    // mid bloom
+    hctx.globalAlpha = 0.45;
+    hctx.drawImage(blo, PLOT.x0-3, PLOT.y0-3, pw+6, ph+6);
+    // crisp core pass (full-res buffer, bilinear-upscaled = naturally soft bands)
+    hctx.globalAlpha = 1;
+    hctx.drawImage(buf, PLOT.x0, PLOT.y0, pw, ph);
+    hctx.restore();
+  }
+
+  // ── overlay: plot frame, gate guide lines, price path, head, now-column ──
+  function renderFx(tl, nowM, revealK){
+    fctx.clearRect(0,0,1920,1080);
+
+    // plot border + faint price gridlines/labels
+    fctx.save();
+    fctx.globalAlpha = revealK;
+    fctx.strokeStyle = 'rgba(42,48,56,0.9)';
+    fctx.lineWidth = 1;
+    fctx.strokeRect(PLOT.x0, PLOT.y0, PLOT.x1-PLOT.x0, PLOT.y1-PLOT.y0);
+    // horizontal price ticks every $4
+    fctx.font = '500 13px "Space Mono", monospace';
+    fctx.fillStyle = 'rgba(140,145,154,0.5)';
+    fctx.textBaseline='middle'; fctx.textAlign='right';
+    for(let pr=180; pr<=196; pr+=4){
+      const y=yToPx(pr);
+      fctx.strokeStyle='rgba(42,48,56,0.45)'; fctx.beginPath();
+      fctx.moveTo(PLOT.x0,y); fctx.lineTo(PLOT.x1,y); fctx.stroke();
+      fctx.fillText('$'+pr, PLOT.x0-12, y);
+    }
+    // vertical KO marker
+    fctx.setLineDash([4,7]); fctx.lineWidth=1.2; fctx.strokeStyle='rgba(230,232,235,0.18)';
+    fctx.beginPath(); fctx.moveTo(xToPx(0),PLOT.y0); fctx.lineTo(xToPx(0),PLOT.y1); fctx.stroke();
+    fctx.setLineDash([]);
+    fctx.fillStyle='rgba(140,145,154,0.55)'; fctx.textAlign='left'; fctx.font='600 12px "Space Grotesk",sans-serif';
+    fctx.fillText('KO', xToPx(0)+8, PLOT.y0+14);
+    fctx.restore();
+
+    // gate guide lines (dashed, colored) across the plot + right-edge target ticks
+    fctx.save(); fctx.globalAlpha = revealK;
+    KEYS.forEach(k=>{
+      const g=GATES[k]; const y=yToPx(g.price); const [r,gg,b]=g.rgb;
+      fctx.strokeStyle=`rgba(${r},${gg},${b},0.34)`; fctx.lineWidth=1.4; fctx.setLineDash([2,9]);
+      fctx.beginPath(); fctx.moveTo(PLOT.x0,y); fctx.lineTo(PLOT.x1,y); fctx.stroke();
+      fctx.setLineDash([]);
+      // solid stub + label at right edge
+      fctx.strokeStyle=`rgba(${r},${gg},${b},0.9)`; fctx.lineWidth=2.5;
+      fctx.beginPath(); fctx.moveTo(PLOT.x1,y); fctx.lineTo(PLOT.x1+14,y); fctx.stroke();
+      fctx.font='700 13px "Space Mono",monospace'; fctx.fillStyle=`rgba(${r},${gg},${b},0.92)`;
+      fctx.textAlign='left'; fctx.textBaseline='middle';
+      fctx.fillText((k==='win'?'WIN':k==='draw'?'DRAW':'LOSE')+' $'+g.price.toFixed(2), PLOT.x1+20, y);
+    });
+    fctx.restore();
+
+    // ── PRICE PATH up to NOW ──
+    const headMin = nowM;
+    fctx.save();
+    fctx.globalAlpha = revealK;
+    fctx.lineJoin='round'; fctx.lineCap='round';
+    // glow underlay
+    fctx.strokeStyle='rgba(255,255,255,0.9)';
+    fctx.shadowColor='rgba(178,237,104,0.7)'; fctx.shadowBlur=18; fctx.lineWidth=3.6;
+    fctx.beginPath();
+    let started=false;
+    for(const s of SAMPLES){ if(s.mn>headMin+0.0001) break;
+      if(!started){ fctx.moveTo(s.x,s.y); started=true; } else fctx.lineTo(s.x,s.y);
+    }
+    // exact head point
+    const hx=xToPx(headMin), hy=yToPx(priceAt(headMin));
+    if(started) fctx.lineTo(hx,hy); else { fctx.moveTo(hx,hy); started=true; }
+    fctx.stroke();
+    // crisp white core line on top (no shadow)
+    fctx.shadowBlur=0; fctx.strokeStyle='rgba(255,255,255,0.96)'; fctx.lineWidth=2.0;
+    fctx.beginPath(); started=false;
+    for(const s of SAMPLES){ if(s.mn>headMin+0.0001) break;
+      if(!started){ fctx.moveTo(s.x,s.y); started=true; } else fctx.lineTo(s.x,s.y);
+    }
+    if(started) fctx.lineTo(hx,hy);
+    fctx.stroke();
+    fctx.restore();
+
+    // ── NOW column sweep ──
+    fctx.save(); fctx.globalAlpha = revealK;
+    const gradN = fctx.createLinearGradient(hx-26,0,hx+1,0);
+    gradN.addColorStop(0,'rgba(196,242,133,0)');
+    gradN.addColorStop(1,'rgba(196,242,133,0.16)');
+    fctx.fillStyle=gradN; fctx.fillRect(hx-26,PLOT.y0,27,PLOT.y1-PLOT.y0);
+    fctx.strokeStyle='rgba(230,255,210,0.55)'; fctx.lineWidth=1.4;
+    fctx.beginPath(); fctx.moveTo(hx,PLOT.y0-8); fctx.lineTo(hx,PLOT.y1+8); fctx.stroke();
+    // NOW tag at top of column
+    fctx.fillStyle='rgba(230,255,210,0.8)'; fctx.font='700 11px "Space Grotesk",sans-serif';
+    fctx.textAlign='center'; fctx.textBaseline='bottom';
+    fctx.fillText('NOW', hx, PLOT.y0-12);
+    fctx.restore();
+
+    // ── head dot (pulse pure fn of tl) ──
+    const inReset = tl>=T.settleEnd;
+    const headCol = (hy<=yToPx(M.koPrice)-0.5)?C_UP:(hy>yToPx(M.koPrice)+0.5?C_DN:C_NEU);
+    const pulse = 6.5 + 3*(0.5+0.5*Math.sin(tl/210));
+    fctx.save(); fctx.globalAlpha=revealK;
+    fctx.beginPath(); fctx.arc(hx,hy,pulse+5,0,7);
+    fctx.strokeStyle=headCol==='#B2ED68'?'rgba(178,237,104,0.4)':(headCol==='#D4135A'?'rgba(212,19,90,0.45)':'rgba(140,145,154,0.4)');
+    fctx.lineWidth=2; fctx.stroke();
+    fctx.shadowColor=headCol; fctx.shadowBlur=20;
+    fctx.fillStyle='#ffffff'; fctx.beginPath(); fctx.arc(hx,hy,6,0,7); fctx.fill();
+    fctx.shadowBlur=0; fctx.fillStyle=headCol; fctx.beginPath(); fctx.arc(hx,hy,3,0,7); fctx.fill();
+    fctx.restore();
+  }
+
+  TAIL.loop((tl)=>{
+    const inReset = tl >= T.settleEnd;
+    const resetK  = inReset ? E.inOut(clamp((tl-T.settleEnd)/(T.resetEnd-T.settleEnd),0,1)) : 0; // 0→1
+    const revealK = inReset ? (1-resetK) : 1;                  // dissolve everything for the seam
+
+    const nowM = nowMin(tl);
+    const cm   = clockMin(tl);
+
+    // FT ignition envelope (only while settled, before reset)
+    let igniteK = 0;
+    if(tl>=T.sweepEnd && !inReset){
+      const st = clamp((tl-T.sweepEnd)/700,0,1);
+      const puls = 0.82 + 0.18*Math.sin((tl-T.sweepEnd)/170);
+      igniteK = E.out(st)*puls;
+    } else if(inReset){
+      igniteK = (1-resetK)*0.7;
+    }
+
+    // ---- HEAT + overlay ----
+    renderHeat(nowM, revealK, igniteK);
+    renderFx(tl, nowM, revealK);
+
+    // ── score + clock ──
+    const sc = scoreAt(Math.min(cm, X_END));
+    elScH.textContent=sc.h; elScA.textContent=sc.a;
+    const dispMin = Math.max(0, Math.round(displayMinute(cm)));
+    const settled = (tl>=T.sweepEnd && !inReset) || (inReset && resetK<0.55);
+    if(settled){ elClock.textContent='FT'; elClockWrap.classList.add('ft'); }
+    else { elClock.textContent=dispMin+"'"; elClockWrap.classList.remove('ft'); }
+
+    // ── big price readout ──
+    const curP = priceAt(nowM);
+    elPxVal.textContent='$'+curP.toFixed(2);
+    const delta = curP - M.koPrice;
+    elPxDl.textContent=(delta>=0?'+':'−')+Math.abs(delta).toFixed(2);
+    if(delta>0.02){ elPxDl.style.background='rgba(178,237,104,.16)'; elPxDl.style.color=C_UP; }
+    else if(delta<-0.02){ elPxDl.style.background='rgba(212,19,90,.18)'; elPxDl.style.color=C_DN; }
+    else { elPxDl.style.background='rgba(140,145,154,.14)'; elPxDl.style.color=C_NEU; }
+    document.querySelector('.px').style.opacity = inReset?(1-0.8*resetK).toFixed(2):'1';
+    document.querySelector('.score').style.opacity = inReset?(1-0.7*resetK).toFixed(2):'1';
+
+    // ── odds → gates + most-likely ──
+    const od = oddsAt(clamp(nowM, X_MIN, X_END));
+    const tot=(od.win+od.draw+od.loss)||1;
+    const pw=od.win/tot*100, pd=od.draw/tot*100, pl=od.loss/tot*100;
+    GATES.win.prob.firstChild.textContent  = Math.round(pw);
+    GATES.draw.prob.firstChild.textContent = Math.round(pd);
+    GATES.loss.prob.firstChild.textContent = Math.round(pl);
+    GATES.win.el.querySelector('.gbar').style.width  = pw.toFixed(1)+'%';
+    GATES.draw.el.querySelector('.gbar').style.width = pd.toFixed(1)+'%';
+    GATES.loss.el.querySelector('.gbar').style.width = pl.toFixed(1)+'%';
+    let topK='loss', topV=pl;
+    if(pw>=pd&&pw>=pl){topK='win';topV=pw;} else if(pd>=pw&&pd>=pl){topK='draw';topV=pd;} else {topK='loss';topV=pl;}
+    GATES.win.el.classList.toggle('active', topK==='win');
+    GATES.draw.el.classList.toggle('active', topK==='draw');
+    GATES.loss.el.classList.toggle('active', topK==='loss');
+    elMlTxt.textContent=ML[topK].txt; elMlDot.style.background=ML[topK].col; elMlVal.style.color=ML[topK].col;
+    document.querySelector('.gates').style.opacity = inReset?(1-0.7*resetK).toFixed(2):'1';
+    document.querySelector('.ml').style.opacity = inReset?(1-0.7*resetK).toFixed(2):'1';
+
+    // settle pulse on LOSE gate at FT
+    if(tl>=T.sweepEnd && !inReset){
+      const pz=0.5+0.5*Math.sin((tl-T.sweepEnd)/180);
+      GATES.loss.el.style.boxShadow='0 0 0 1px rgba(212,19,90,.6),0 0 '+(30+24*pz).toFixed(0)+'px rgba(179,15,67,'+(0.3+0.2*pz).toFixed(2)+')';
+      GATES.loss.el.classList.add('active');
+    } else { GATES.loss.el.style.boxShadow=''; }
+
+    // ── goal cards (driven by tl) ──
+    const IN_MS=300, DWELL_MS=1850, OUT_MS=420;
+    GOALS.forEach((g,gi)=>{
+      const next=GOALS[gi+1];
+      const endByNext = next? next.tlGoal+40 : Infinity;
+      const visEnd = Math.min(g.tlGoal+DWELL_MS, endByNext);
+      const t = tl-g.tlGoal;
+      let op=0,ty=0,sxc=1;
+      if(!inReset && tl>=g.tlGoal-30 && tl<=visEnd){
+        const inT=clamp((t+30)/IN_MS,0,1);
+        const outT=clamp((tl-(visEnd-OUT_MS))/OUT_MS,0,1);
+        op=E.out(inT)*(1-E.in(outT));
+        ty=lerp(22,0,E.spring(inT))-lerp(0,12,outT);
+        sxc=lerp(0.92,1,E.out(inT));
+      }
+      g.card.style.opacity=op.toFixed(3);
+      const gx=clamp(g.x, 250, 1360);
+      const gy=yToPx(priceAt(g.min));
+      const above = g.by==='subject' ? -150 : -158;
+      const cardTop = clamp(gy+above+ty, 150, 640);
+      g.card.style.left=gx+'px'; g.card.style.top=cardTop+'px';
+      g.card.style.transform='translate(-50%,0) scale('+sxc.toFixed(3)+')';
+      g.card.style.zIndex = op>0.05?47:46;
+    });
+
+    // ── FT stamp ──
+    if(tl>=T.sweepEnd && !inReset){
+      const st=clamp((tl-T.sweepEnd)/600,0,1);
+      ftStamp.style.opacity=(E.out(st)*0.96).toFixed(2);
+      ftStamp.style.transform='translate(-50%,-50%) scale('+lerp(0.92,1,E.out(st)).toFixed(3)+')';
+    } else if(inReset){
+      ftStamp.style.opacity=(0.96*(1-resetK)).toFixed(2);
+    } else { ftStamp.style.opacity='0'; }
+  });
+
+  TAIL.ready();
+})();
+</script>
+</body>
+</html>
